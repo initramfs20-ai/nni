@@ -241,6 +241,7 @@ EOF
 
   # pol replaces apt: divert the user-facing apt tools out of PATH (survives upgrades)
   echo "==> pol replaces apt"
+  mkdir -p "$R/usr/lib/pol"
   for b in apt apt-get apt-cache; do
     chroot "$R" dpkg-divert --local --rename --divert "/usr/lib/pol/$b" --add "/usr/bin/$b"
   done
