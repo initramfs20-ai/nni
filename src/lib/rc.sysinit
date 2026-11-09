@@ -65,11 +65,6 @@ if [ "$WIFI_AUTO" = yes ]; then
   command -v wifi >/dev/null 2>&1 && wifi up >/dev/null 2>&1 &
 fi
 
-# Start the shell on a clean screen after the splash, or on any "quiet" boot.
-# Otherwise leftovers stay visible: on BIOS machines the text console keeps
-# whatever the firmware printed (SeaBIOS lines), and the graphics driver later
-# copies all of it onto the new screen.
-if [ -n "$SPLASHED" ] || grep -qw quiet /proc/cmdline 2>/dev/null; then
-  printf '\033[H\033[2J\033[3J' > /dev/tty1 2>/dev/null
-fi
+# hand the screen back to the text console: the shell starts on a clean screen
+[ -n "$SPLASHED" ] && printf '\033[H\033[2J' > /dev/tty1 2>/dev/null
 exit 0
