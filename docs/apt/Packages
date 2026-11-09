@@ -5,10 +5,10 @@ Maintainer: nni project <nni@invalid>
 Installed-Size: 4452
 Depends: nni-base (>= 1.0.2)
 Filename: pool/nni-artwork_1.0.2_all.deb
-Size: 4503636
-MD5sum: 474c55b61b0404250cdcca32f85342fa
-SHA1: 86305ef8843a614bd2c0b072cad243b0e53f035d
-SHA256: 1e83f61381bfaea10793b35c83e6a062804278b244efe67156eb3511b5b2e357
+Size: 4503600
+MD5sum: 8fad1029b24ee7e5d9ed09c8e19a5886
+SHA1: 5b36078255cf067e2745e42ed88ef3ad7b459f91
+SHA256: c5874c558688add38826051fbf6ab976715a5fd9feae4b52e94744fd509c2f08
 Section: x11
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
@@ -20,14 +20,14 @@ Package: nni-base
 Version: 1.0.2
 Architecture: amd64
 Maintainer: nni project <nni@invalid>
-Installed-Size: 1532
+Installed-Size: 1580
 Depends: busybox-static | busybox, fastfetch
 Recommends: wpasupplicant, iw
 Filename: pool/nni-base_1.0.2_amd64.deb
-Size: 395944
-MD5sum: ead9943f666f484ab95950ff52bb1d37
-SHA1: 8b2b6afc343c628bdd97943db6aaaa8b52a412e5
-SHA256: a0a3d7171af7b08a0bc2eeea996f8cca06988fdc51c8a8b5aa8153069ef2de69
+Size: 403388
+MD5sum: f4bf06a1e9c9bcf6dec5f6dd028d9e8b
+SHA1: 855f47f7656015cb60ea87cb663e2e380c8bdbf9
+SHA256: 7b20f657cc94c78dc0e98cd156f6746ec2b1a265f5d7d0baa66631323ad9297c
 Section: admin
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
