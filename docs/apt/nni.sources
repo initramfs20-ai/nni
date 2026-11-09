@@ -1,0 +1,4 @@
+Types: deb
+URIs: https://initramfs20-ai.github.io/nni/apt/
+Suites: ./
+Signed-By: /usr/share/keyrings/nni-archive-keyring.gpg

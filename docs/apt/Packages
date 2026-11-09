@@ -1,0 +1,39 @@
+Package: nni-artwork
+Version: 1.0.0
+Architecture: all
+Maintainer: nni project <nni@invalid>
+Installed-Size: 4452
+Depends: nni-base (>= 1.0.0)
+Filename: pool/nni-artwork_1.0.0_all.deb
+Size: 4503632
+MD5sum: e4dc6f2a6e10ec699604756dcc20dc2a
+SHA1: ab581b35a4276c8d8c7aa5b44eacfad129b25964
+SHA256: ac3073770cecd85ec3bf9c12e1498ab602cf001fa6bf1855ee15b78ffce6d010
+Section: x11
+Priority: optional
+Homepage: https://github.com/initramfs20-ai/nni
+Description: wallpapers and desktop theme for the nni family
+ The four YnniOS wallpapers, the Ynni icewm theme and the GRUB menu
+ background. Pick a wallpaper with: nni wallpaper list
+
+Package: nni-base
+Version: 1.0.0
+Architecture: amd64
+Maintainer: nni project <nni@invalid>
+Installed-Size: 1532
+Depends: busybox-static | busybox, fastfetch
+Recommends: wpasupplicant, iw
+Filename: pool/nni-base_1.0.0_amd64.deb
+Size: 396180
+MD5sum: fffa3609b0e394dd0c41574f19d624aa
+SHA1: fdcda1d1e1272eeb4f9c69e443b76c4f902faeb6
+SHA256: 272d4f9fab3eae550c4aed9acb667f388dae2474195ba894974a9dccc4729ec9
+Section: admin
+Priority: optional
+Homepage: https://github.com/initramfs20-ai/nni
+Description: shared core of the nni family (YnniOS)
+ The pieces that make YnniOS itself: the nni settings command and
+ /etc/nni.conf, the svc service manager, the wifi helper, the pol package
+ layer, the busybox boot script, the handbook, the chicken logos and the
+ boot splash.
+
