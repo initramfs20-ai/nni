@@ -230,7 +230,7 @@ setup() {
     f="$R/usr/local/bin/$t"
     if [ -f "$f" ] && [ ! -L "$f" ]; then
       mkdir -p "$R/var/backups/nni-old"
-      mv "$f" "$R/var/backups/nni-old/$t" && echo "nni: moved old $f to /var/backups/nni-old/"
+      mv "$f" "$R/var/backups/nni-old/$t" && echo "nni: moved old $f to /var/backups/nni-old/ (open a new terminal, or run: hash -r)"
     fi
   done
   # older SGnniOS builds had their own welcome script; nni.sh replaces it
@@ -345,7 +345,7 @@ case "$cmd" in
                esac ;;
   setup)       need_root setup; setup "$@" ;;
   os-release)  need_root os-release; write_os_release ;;
-  update)      update_self ;;
+  update|upgrade) update_self ;;
   version|-v|--version) echo "$NAME $VERSION \"$CODENAME\" ($EDITION) - nni family" ;;
   help|-h|--help) usage ;;
   *)           echo "nni: unknown command '$cmd'" >&2; usage >&2; exit 1 ;;
