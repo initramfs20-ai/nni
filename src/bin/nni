@@ -1,0 +1,352 @@
+#!/bin/sh
+# nni - settings, info and upkeep for the nni family (YnniOS, SGnniOS).
+# Every setting lives in /etc/nni.conf; "nni set" changes it and applies it at once.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bb/bin
+
+R=${NNI_ROOT:-}                       # test hook: run against a fake root
+SHARE=${NNI_SHARE:-$R/usr/share/nni}
+CONF=$R/etc/nni.conf
+STATE=$R/etc/nni
+
+KEYS="HOSTNAME TIMEZONE KEYMAP CONSOLE_FONT XKB_LAYOUT WIFI_AUTO WALLPAPER SPLASH"
+
+die()  { echo "nni: $*" >&2; exit 1; }
+need_root() { [ -n "$R" ] || [ "$(id -u)" -eq 0 ] || die "'$1' needs root (try: doas nni $*)"; }
+
+describe() {
+  case "$1" in
+    HOSTNAME)     echo "name of this computer" ;;
+    TIMEZONE)     echo "time zone, e.g. America/Argentina/Buenos_Aires (see /usr/share/zoneinfo)" ;;
+    KEYMAP)       echo "console keyboard layout, e.g. la-latin1, us, es (needs the kbd package)" ;;
+    CONSOLE_FONT) echo "console font, e.g. Lat15-Terminus16 (needs the kbd package)" ;;
+    XKB_LAYOUT)   echo "desktop keyboard layout, e.g. latam, us, es (full edition)" ;;
+    WIFI_AUTO)    echo "yes = connect to saved Wi-Fi at boot" ;;
+    WALLPAPER)    echo "desktop wallpaper: number or name (nni wallpaper list)" ;;
+    SPLASH)       echo "yes = show the chicken splash while booting" ;;
+  esac
+}
+
+# ------------------------------------------------------------------ identity
+detect() {
+  DISTRO=$(cat "$STATE/distro" 2>/dev/null)
+  if [ -z "$DISTRO" ]; then
+    if [ -d "$R/var/db/pkg" ]; then DISTRO=sgnnios; else DISTRO=ynnios; fi
+  fi
+  EDITION=$(cat "$STATE/edition" 2>/dev/null)
+  [ -n "$EDITION" ] || EDITION=$(cat "$R/etc/ynnios-edition" 2>/dev/null)
+  [ -n "$EDITION" ] || { [ "$DISTRO" = sgnnios ] && EDITION=base || EDITION=minimal; }
+  case "$DISTRO" in sgnnios) NAME=SGnniOS ;; *) NAME=YnniOS ;; esac
+  VERSION=$(cat "$SHARE/VERSION" 2>/dev/null || echo 0)
+  CODENAME=$(cat "$SHARE/CODENAME" 2>/dev/null || echo unknown)
+  HOME_URL=$(cat "$SHARE/home_url" 2>/dev/null)
+}
+
+# ------------------------------------------------------------------ config
+defaults() {
+  HOSTNAME=$(cat "$R/etc/hostname" 2>/dev/null); [ -n "$HOSTNAME" ] || HOSTNAME=$NAME
+  TIMEZONE=$(cat "$R/etc/timezone" 2>/dev/null || echo UTC)
+  KEYMAP=; CONSOLE_FONT=; XKB_LAYOUT=
+  WIFI_AUTO=no
+  for f in "$R/etc/ynnios-wifi-auto" "$R/etc/sgnnios-wifi-auto"; do [ -e "$f" ] && WIFI_AUTO=yes; done
+  WALLPAPER=1
+  SPLASH=yes
+}
+
+load() {
+  defaults
+  # shellcheck disable=SC1090
+  [ -r "$CONF" ] && . "$CONF"
+}
+
+write_conf() {
+  tmp="$CONF.tmp.$$"
+  {
+    echo "# /etc/nni.conf - settings for $NAME. Change them with: nni set KEY VALUE"
+    echo "# (editing by hand works too; run 'nni apply' afterwards)"
+    for k in $KEYS; do
+      eval "v=\${$k}"
+      echo ""
+      echo "# $(describe "$k")"
+      echo "$k=\"$v\""
+    done
+  } > "$tmp" && mv "$tmp" "$CONF"
+}
+
+valid_key() { for k in $KEYS; do [ "$k" = "$1" ] && return 0; done; return 1; }
+
+check_value() { # key value
+  case "$2" in *'"'*|*'$'*|*'`'*|*'\'*) die "values cannot contain quotes, \$, \` or \\" ;; esac
+  case "$1" in
+    WIFI_AUTO|SPLASH)
+      case "$2" in yes|no) ;; on) v=yes ;; off) v=no ;; *) die "$1 must be yes or no" ;; esac ;;
+    HOSTNAME)
+      case "$2" in ''|*[!A-Za-z0-9-]*) die "a hostname may only use letters, digits and -" ;; esac ;;
+    TIMEZONE)
+      [ -f "$R/usr/share/zoneinfo/$2" ] || die "unknown time zone '$2' (look in /usr/share/zoneinfo)" ;;
+  esac
+}
+
+# ------------------------------------------------------------------ apply
+apply_hostname() {
+  echo "$HOSTNAME" > "$R/etc/hostname"
+  [ -z "$R" ] && hostname "$HOSTNAME" 2>/dev/null
+  if [ -f "$R/etc/hosts" ]; then
+    if grep -q '^127\.0\.1\.1' "$R/etc/hosts"; then
+      sed -i "s/^127\.0\.1\.1.*/127.0.1.1\t$HOSTNAME/" "$R/etc/hosts"
+    else
+      printf '127.0.1.1\t%s\n' "$HOSTNAME" >> "$R/etc/hosts"
+    fi
+  fi
+}
+
+apply_timezone() {
+  [ -f "$R/usr/share/zoneinfo/$TIMEZONE" ] || { echo "nni: time zone '$TIMEZONE' not found, skipped" >&2; return 0; }
+  ln -sf "/usr/share/zoneinfo/$TIMEZONE" "$R/etc/localtime"
+  echo "$TIMEZONE" > "$R/etc/timezone"
+}
+
+apply_console() {
+  [ -n "$R" ] && return 0
+  if [ -n "$KEYMAP" ]; then
+    if command -v loadkeys >/dev/null 2>&1; then loadkeys "$KEYMAP" >/dev/null 2>&1 || echo "nni: keymap '$KEYMAP' failed" >&2
+    else echo "nni: KEYMAP needs loadkeys (YnniOS: pol install kbd  SGnniOS: spol install sys-apps/kbd)" >&2; fi
+  fi
+  if [ -n "$CONSOLE_FONT" ]; then
+    if command -v setfont >/dev/null 2>&1; then setfont "$CONSOLE_FONT" 2>/dev/null || echo "nni: font '$CONSOLE_FONT' failed" >&2
+    else echo "nni: CONSOLE_FONT needs setfont (the kbd package)" >&2; fi
+  fi
+}
+
+apply_x() {   # called from ~/.xinitrc before the desktop starts
+  [ -n "$XKB_LAYOUT" ] && command -v setxkbmap >/dev/null 2>&1 && setxkbmap "$XKB_LAYOUT"
+  [ -f "$HOME/.Xresources" ] && command -v xrdb >/dev/null 2>&1 && xrdb -nocpp -merge "$HOME/.Xresources"
+  wallpaper_apply quiet
+  return 0
+}
+
+apply_all() {
+  apply_hostname; apply_timezone; apply_console
+  [ "$1" = boot ] || wallpaper_apply quiet
+  return 0
+}
+
+# ------------------------------------------------------------------ wallpaper
+wall_dir() {
+  for d in "$R/usr/share/backgrounds/nni" "$R/usr/share/backgrounds/ynnios"; do
+    ls "$d"/*.png >/dev/null 2>&1 && { echo "$d"; return 0; }
+  done
+  return 1
+}
+
+wall_list() {
+  d=$(wall_dir) || { echo "no wallpapers installed (they come with the full edition: nni-artwork)"; return 1; }
+  i=1
+  for f in "$d"/*.png; do
+    b=$(basename "$f" .png); mark=" "
+    case "$WALLPAPER" in "$i"|"$b"|"$b.png") mark="*" ;; esac
+    echo "$mark $i) $b"; i=$((i+1))
+  done
+}
+
+wall_pick() { # prints the file for $WALLPAPER
+  d=$(wall_dir) || return 1
+  i=1
+  for f in "$d"/*.png; do
+    b=$(basename "$f")
+    case "$WALLPAPER" in "$i"|"$b"|"${b%.png}") echo "$f"; return 0 ;; esac
+    i=$((i+1))
+  done
+  return 1
+}
+
+wallpaper_apply() {
+  pick=$(wall_pick) || { [ "$1" = quiet ] || echo "nni: unknown wallpaper '$WALLPAPER'" >&2; return 0; }
+  home=${HOME:-/root}
+  [ -n "$R" ] && home=$R/root
+  pref="$home/.icewm/prefoverride"
+  mkdir -p "$home/.icewm" 2>/dev/null || return 0
+  touch "$pref"
+  grep -v '^DesktopBackground' "$pref" > "$pref.tmp" 2>/dev/null
+  { echo "DesktopBackgroundImage=\"${pick#$R}\""; echo "DesktopBackgroundScaled=1"; } >> "$pref.tmp"
+  mv "$pref.tmp" "$pref"
+  [ -z "$R" ] && [ -n "$DISPLAY" ] && icewmbg -r >/dev/null 2>&1
+  [ "$1" = quiet ] || echo "wallpaper: $(basename "$pick")"
+  return 0
+}
+
+# ------------------------------------------------------------------ os-release
+write_os_release() {
+  out="$R/etc/os-release"
+  [ -L "$out" ] && rm -f "$out"
+  {
+    echo "NAME=\"$NAME\""
+    echo "ID=$DISTRO"
+    echo "VERSION=\"$VERSION ($CODENAME)\""
+    echo "VERSION_ID=\"$VERSION\""
+    echo "VERSION_CODENAME=$(echo "$CODENAME" | tr 'A-Z' 'a-z')"
+    echo "VARIANT=\"$EDITION\""
+    echo "VARIANT_ID=$EDITION"
+    echo "PRETTY_NAME=\"$NAME $VERSION $CODENAME ($EDITION)\""
+    echo "ANSI_COLOR=\"1;33\""
+    [ -n "$HOME_URL" ] && echo "HOME_URL=\"$HOME_URL\""
+    [ -n "$HOME_URL" ] && echo "BUG_REPORT_URL=\"$HOME_URL/issues\""
+  } > "$out"
+}
+
+# ------------------------------------------------------------------ setup
+# Run by the package scripts and the ISO builders. Safe to run again.
+setup() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --distro)  shift; mkdir -p "$STATE"; echo "$1" > "$STATE/distro" ;;
+      --edition) shift; mkdir -p "$STATE"; echo "$1" > "$STATE/edition" ;;
+    esac
+    shift
+  done
+  mkdir -p "$STATE/services" "$STATE/enabled"
+  detect
+  load
+  [ -f "$CONF" ] || { write_conf; echo "nni: created /etc/nni.conf"; }
+  # the old "wifi auto" flag files now live in WIFI_AUTO
+  rm -f "$R/etc/ynnios-wifi-auto" "$R/etc/sgnnios-wifi-auto"
+  write_os_release
+
+  # busybox applets used by the nni tools
+  if [ ! -x "$R/opt/bb/bin/sh" ] && [ -z "$R" ] && [ -x /bin/busybox ]; then
+    mkdir -p /opt/bb/bin && /bin/busybox --install -s /opt/bb/bin
+  fi
+  [ -e "$R/opt/bb/init" ] || { mkdir -p "$R/opt/bb"; ln -sf /bin/busybox "$R/opt/bb/init"; }
+
+  # udhcpc needs this script to actually apply a DHCP lease
+  if [ ! -x "$R/usr/share/udhcpc/default.script" ] && [ -f "$R/usr/lib/nni/udhcpc.script" ]; then
+    mkdir -p "$R/usr/share/udhcpc"
+    cp "$R/usr/lib/nni/udhcpc.script" "$R/usr/share/udhcpc/default.script"
+    chmod 755 "$R/usr/share/udhcpc/default.script"
+  fi
+
+  # move tools that older ISOs copied into /usr/local/bin out of the way,
+  # otherwise they would hide the packaged versions
+  for t in wifi pol spol handbook ynnios-wallpaper; do
+    f="$R/usr/local/bin/$t"
+    if [ -f "$f" ] && [ ! -L "$f" ]; then
+      mkdir -p "$R/var/backups/nni-old"
+      mv "$f" "$R/var/backups/nni-old/$t" && echo "nni: moved old $f to /var/backups/nni-old/"
+    fi
+  done
+  # older SGnniOS builds had their own welcome script; nni.sh replaces it
+  f="$R/etc/profile.d/sgnnios.sh"
+  grep -q 'Welcome to SGnniOS' "$f" 2>/dev/null && mv "$f" "$R/var/backups/nni-old/sgnnios.sh" 2>/dev/null
+  # point root's fastfetch at the packaged logo
+  ff="$R/root/.config/fastfetch/config.jsonc"
+  if [ -L "$ff" ] || [ ! -e "$ff" ]; then
+    mkdir -p "$(dirname "$ff")"; ln -sf "/usr/share/nni/fastfetch/$DISTRO.jsonc" "$ff"
+  fi
+  return 0
+}
+
+# ------------------------------------------------------------------ info
+info() {
+  load
+  uname_r=$(uname -r 2>/dev/null)
+  en=$(ls "$STATE/enabled" 2>/dev/null | tr '\n' ' ')
+  cat <<EOF
+$NAME $VERSION "$CODENAME" - $EDITION edition
+  family     nni (YnniOS / SGnniOS)
+  kernel     $uname_r
+  hostname   $HOSTNAME
+  time zone  $TIMEZONE
+  Wi-Fi auto $WIFI_AUTO
+  splash     $SPLASH
+  services   ${en:-none enabled}  (svc list)
+  settings   /etc/nni.conf  (nni list)
+${HOME_URL:+  project    $HOME_URL}
+EOF
+}
+
+update_self() {
+  need_root update
+  case "$DISTRO" in
+    sgnnios)
+      rc=$R/etc/portage/repos.conf/nni.conf
+      if ! grep -q '^sync-type *= *git' "$rc" 2>/dev/null; then
+        # first update: switch the overlay the ISO shipped with to the GitHub one
+        case "$HOME_URL" in ''|*YOUR-GITHUB-USER*) die "this build does not know its GitHub repo yet" ;; esac
+        command -v git >/dev/null 2>&1 || die "git is needed for updates: spol install dev-vcs/git"
+        mkdir -p "$(dirname "$rc")"
+        printf '[nni]\nlocation = /var/db/repos/nni\nsync-type = git\nsync-uri = %s.git\nsync-depth = 1\nauto-sync = yes\n' "$HOME_URL" > "$rc"
+        rm -rf "$R/var/db/repos/nni"
+      fi
+      emerge --sync nni || die "could not sync the nni overlay (is the network up?)"
+      exec emerge --ask --verbose --update --oneshot app-misc/nni-base ;;
+    *)
+      pol update || die "could not refresh the package lists"
+      pkgs=nni-base
+      dpkg -s nni-artwork >/dev/null 2>&1 && pkgs="$pkgs nni-artwork"
+      # shellcheck disable=SC2086
+      exec pol install $pkgs ;;
+  esac
+}
+
+usage() {
+cat <<'EOF'
+nni - settings and info for YnniOS / SGnniOS
+
+  nni                       short system summary (same as: nni info)
+  nni list                  all settings with their values
+  nni get KEY               one setting
+  nni set KEY VALUE         change a setting and apply it now
+  nni apply                 apply every setting again
+  nni wallpaper [list|N]    show or pick the desktop wallpaper
+  nni update                upgrade the nni packages themselves
+  nni version               version and codename
+
+Settings: HOSTNAME TIMEZONE KEYMAP CONSOLE_FONT XKB_LAYOUT WIFI_AUTO WALLPAPER SPLASH
+Services are managed with "svc" (svc help). Help for everything: handbook
+EOF
+}
+
+detect
+cmd=${1:-info}
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  info|status) info ;;
+  list)        load
+               for k in $KEYS; do eval "v=\${$k}"; printf '%-13s %-28s # %s\n' "$k" "\"$v\"" "$(describe "$k")"; done ;;
+  get)         [ -n "$1" ] || die "usage: nni get KEY"
+               valid_key "$1" || die "unknown setting '$1' (nni list)"
+               load; eval "echo \"\${$1}\"" ;;
+  set)         [ $# -ge 1 ] || die "usage: nni set KEY VALUE"
+               key=$(echo "$1" | tr 'a-z' 'A-Z'); shift; val="$*"
+               valid_key "$key" || die "unknown setting '$key' (nni list)"
+               need_root set
+               v=$val; check_value "$key" "$val"; val=$v
+               load; eval "$key=\$val"; write_conf
+               case "$key" in
+                 HOSTNAME) apply_hostname ;;
+                 TIMEZONE) apply_timezone ;;
+                 KEYMAP|CONSOLE_FONT) apply_console ;;
+                 WALLPAPER) wallpaper_apply ;;
+                 XKB_LAYOUT) [ -n "$DISPLAY" ] && apply_x ;;
+                 WIFI_AUTO) rm -f "$R/etc/ynnios-wifi-auto" "$R/etc/sgnnios-wifi-auto" ;;
+               esac
+               echo "$key=\"$val\"" ;;
+  apply)       load
+               case "$1" in
+                 --x) apply_x ;;                       # per user, from ~/.xinitrc
+                 --boot) need_root apply; apply_all boot ;;
+                 *) need_root apply; apply_all; echo "settings applied" ;;
+               esac ;;
+  wallpaper)   load
+               case "${1:-list}" in
+                 list|-l|--list) wall_list ;;
+                 *) WALLPAPER=$1; wall_pick >/dev/null || { echo "nni: unknown wallpaper '$1'" >&2; wall_list; exit 1; }
+                    [ -w "$CONF" ] || [ -n "$R" ] && write_conf 2>/dev/null
+                    wallpaper_apply ;;
+               esac ;;
+  setup)       need_root setup; setup "$@" ;;
+  os-release)  need_root os-release; write_os_release ;;
+  update)      update_self ;;
+  version|-v|--version) echo "$NAME $VERSION \"$CODENAME\" ($EDITION) - nni family" ;;
+  help|-h|--help) usage ;;
+  *)           echo "nni: unknown command '$cmd'" >&2; usage >&2; exit 1 ;;
+esac

@@ -1,0 +1,3 @@
+DESC="D-Bus system bus, needed by some desktop apps"
+PRE="mkdir -p /run/dbus && dbus-uuidgen --ensure"
+CMD="dbus-daemon --system --nofork --nopidfile"

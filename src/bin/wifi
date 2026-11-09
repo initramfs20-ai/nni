@@ -1,0 +1,257 @@
+#!/bin/sh
+# wifi - small Wi-Fi helper for YnniOS. It prints every command it runs
+# (lines starting with "+"), so the manual steps stay visible.
+PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bb/bin
+ETC=${NNI_ETC:-${YNNIOS_ETC:-/etc}}
+UDHCPC_SCRIPT=${YNNIOS_UDHCPC_SCRIPT:-/usr/share/udhcpc/default.script}
+CONF=$ETC/wpa_supplicant.conf          # saved networks
+STATIC=$ETC/nni/wifi-static           # optional fixed address settings
+# settings saved by older YnniOS/SGnniOS builds are still honoured
+for old in "$ETC/ynnios-wifi-static" "$ETC/sgnnios-wifi-static"; do
+  [ ! -f "$STATIC" ] && [ -f "$old" ] && { mkdir -p "$ETC/nni"; cp "$old" "$STATIC"; }
+done
+
+run() { echo "+ $*" >&2; "$@"; }
+die() { echo "wifi: $*" >&2; exit 1; }
+
+usage() {
+cat <<'EOF'
+wifi - YnniOS Wi-Fi helper (prints each command it runs)
+
+  wifi scan                    list nearby networks, strongest first
+  wifi connect "SSID" [pass]   save the network and connect
+  wifi up                      connect to a saved network
+  wifi down                    disconnect
+  wifi status                  link, address and route
+  wifi list                    saved networks
+  wifi forget "SSID"           remove a saved network
+
+  wifi fallback IP/PREFIX GATEWAY [DNS...]
+        try DHCP first; if it gives no address, use this fixed one
+  wifi static IP/PREFIX GATEWAY [DNS...]
+        always use this fixed address (no DHCP)
+        e.g.  wifi fallback 192.168.1.50/24 192.168.1.1 1.1.1.1 9.9.9.9
+  wifi dhcp                    forget the fixed address, DHCP only
+  wifi auto on|off             connect by itself at every boot
+
+Set WIFI_IF=wlan0 to choose the interface by hand.
+EOF
+}
+
+cmd=${1:-help}
+case "$cmd" in help|-h|--help) usage; exit 0 ;; esac
+[ "$(id -u)" -eq 0 ] || die "needs root (try: doas wifi $*)"
+
+need_tools() {
+  for t in wpa_supplicant iw; do
+    command -v "$t" >/dev/null 2>&1 ||
+      die "$t not found. Run: pol install wpasupplicant iw  (plus the firmware package for your card)"
+  done
+}
+
+find_if() {
+  if [ -n "$WIFI_IF" ]; then IF=$WIFI_IF; return 0; fi
+  n=0
+  while [ "$n" -lt 10 ]; do
+    for d in /sys/class/net/*; do
+      if [ -d "$d/wireless" ]; then IF=${d##*/}; return 0; fi
+    done
+    n=$((n+1)); sleep 1
+  done
+  return 1
+}
+
+no_if() { die "no wireless interface found (missing firmware? try: dmesg | grep -i firmware)"; }
+
+unblock() { command -v rfkill >/dev/null 2>&1 && run rfkill unblock wifi; return 0; }
+
+# Without this script udhcpc gets a lease but never applies it (no IP, no route).
+ensure_udhcpc_script() {
+  [ -x "$UDHCPC_SCRIPT" ] && return 0
+  echo "+ creating $UDHCPC_SCRIPT (it was missing, so DHCP leases were never applied)" >&2
+  mkdir -p "$(dirname "$UDHCPC_SCRIPT")"
+  cat > "$UDHCPC_SCRIPT" <<'DHCP_EOF'
+#!/bin/sh
+case "$1" in
+  deconfig)
+    ip addr flush dev "$interface" 2>/dev/null
+    ip link set "$interface" up
+    ;;
+  bound|renew)
+    ip addr flush dev "$interface" 2>/dev/null
+    ip addr add "$ip/${mask:-24}" dev "$interface" ${broadcast:+broadcast "$broadcast"}
+    ip route del default 2>/dev/null
+    for g in $router; do ip route add default via "$g" dev "$interface"; break; done
+    : > /etc/resolv.conf
+    for d in $dns; do echo "nameserver $d" >> /etc/resolv.conf; done
+    ;;
+esac
+exit 0
+DHCP_EOF
+  chmod 755 "$UDHCPC_SCRIPT"
+}
+
+have_ip() { ip -4 addr show dev "$IF" 2>/dev/null | grep -q 'inet '; }
+wait_ip() {
+  n=0
+  while [ "$n" -lt "$1" ]; do have_ip && return 0; n=$((n+1)); sleep 1; done
+  return 1
+}
+
+# ip addr add / ip route add default via / nameserver, from the saved settings
+apply_static() {
+  run ip addr flush dev "$IF"
+  run ip addr add "$ADDR" dev "$IF"
+  ip route del default 2>/dev/null
+  run ip route add default via "$GW" dev "$IF"
+  : > "$ETC/resolv.conf"
+  for d in $DNS; do
+    echo "+ echo nameserver $d >> $ETC/resolv.conf" >&2
+    echo "nameserver $d" >> "$ETC/resolv.conf"
+  done
+}
+
+# remove the saved network block whose ssid matches $1
+drop_block() {
+  [ -f "$CONF" ] || return 0
+  awk -v s="ssid=\"$1\"" '
+    /^network=\{/ { inb=1; blk=$0 "\n"; next }
+    inb { blk = blk $0 "\n"; if ($0 ~ /^\}/) { inb=0; if (index(blk, s)==0) printf "%s", blk } next }
+    { print }' "$CONF" > "$CONF.tmp" && mv "$CONF.tmp" "$CONF"
+}
+
+wifi_scan() {
+  need_tools; find_if || no_if
+  unblock; run ip link set "$IF" up
+  echo "+ iw dev $IF scan" >&2
+  out=$(iw dev "$IF" scan 2>&1)
+  echo "$out" | awk '/signal:/ {s=$2} /SSID:/ { sub(/^[ \t]*SSID: /,""); if ($0!="") print s, $0 }' | sort -nr | uniq
+  echo "$out" | grep -qi busy && echo "wifi: device busy - run 'wifi down' first, then scan" >&2
+  return 0
+}
+
+# Stop wpa_supplicant/udhcpc and WAIT until they are really gone. Starting a new
+# wpa_supplicant while the old one still holds /run/wpa_supplicant/<if> fails
+# silently, which is why a second "wifi connect" used to fail at random.
+stop_wifi() {
+  killall udhcpc wpa_supplicant 2>/dev/null
+  n=0
+  while pidof wpa_supplicant udhcpc >/dev/null 2>&1; do
+    n=$((n+1))
+    [ "$n" -eq 5 ] && killall -9 udhcpc wpa_supplicant 2>/dev/null
+    [ "$n" -gt 10 ] && break
+    sleep 1
+  done
+  rm -f "/run/wpa_supplicant/$IF"
+}
+
+# "Connected" in iw only means associated. DHCP packets are dropped until the WPA
+# handshake finishes, so wait for wpa_state=COMPLETED before asking for an address.
+wait_auth() {
+  n=0
+  while [ "$n" -lt 30 ]; do
+    if command -v wpa_cli >/dev/null 2>&1; then
+      wpa_cli -p /run/wpa_supplicant -i "$IF" status 2>/dev/null | grep -q '^wpa_state=COMPLETED' && return 0
+    else
+      iw dev "$IF" link 2>/dev/null | grep -q Connected && { sleep 3; return 0; }
+    fi
+    n=$((n+1)); sleep 1
+  done
+  return 1
+}
+
+wifi_up() {
+  need_tools; find_if || no_if
+  [ -f "$CONF" ] || die 'no saved networks. Use: wifi connect "SSID"'
+  ensure_udhcpc_script
+  ADDR=; GW=; DNS=; MODE=
+  if [ -f "$STATIC" ]; then . "$STATIC"; MODE=${MODE:-always}; fi
+  unblock
+  stop_wifi
+  ip addr flush dev "$IF" 2>/dev/null
+  run ip link set "$IF" up
+  mkdir -p /run/wpa_supplicant
+  run wpa_supplicant -B -i "$IF" -c "$CONF" -C /run/wpa_supplicant ||
+    die "wpa_supplicant failed to start (see the message above)"
+  echo "waiting for the network to accept the password..." >&2
+  wait_auth || die "could not connect (wrong password or out of range?)"
+  if [ "$MODE" = always ]; then
+    apply_static
+  else
+    # up to ~20 s in the foreground, then udhcpc keeps trying in the background
+    run udhcpc -i "$IF" -b -t 7 -T 3
+    if ! wait_ip 10; then
+      if [ "$MODE" = fallback ] && [ -n "$ADDR" ]; then
+        echo "wifi: DHCP gave no address - using the saved fixed address" >&2
+        killall udhcpc 2>/dev/null
+        apply_static
+      else
+        echo "wifi: connected, but DHCP has not answered yet. udhcpc keeps trying in" >&2
+        echo "      the background; check with: wifi status" >&2
+        echo "      If it never gets an address, save a fixed one with:" >&2
+        echo "      wifi fallback 192.168.1.50/24 192.168.1.1 1.1.1.1   (use your own numbers)" >&2
+        return 1
+      fi
+    fi
+  fi
+  echo "connected to: $(iw dev "$IF" link | sed -n 's/.*SSID: //p')" >&2
+  echo "address: $(ip -4 addr show dev "$IF" | sed -n 's/.*inet \([^ ]*\).*/\1/p' | head -1)" >&2
+}
+
+wifi_connect() {
+  ssid=$1
+  [ -n "$ssid" ] || die 'usage: wifi connect "SSID" [password]'
+  need_tools
+  pw=$2
+  if [ -z "$pw" ]; then
+    printf 'Password for %s (leave empty for an open network): ' "$ssid" >&2
+    stty -echo 2>/dev/null; read -r pw; stty echo 2>/dev/null; echo >&2
+  fi
+  [ -f "$CONF" ] || printf 'ctrl_interface=/run/wpa_supplicant\n' > "$CONF"
+  chmod 600 "$CONF"
+  drop_block "$ssid"
+  if [ -n "$pw" ]; then
+    echo "+ wpa_passphrase \"$ssid\" ******** >> $CONF" >&2
+    blk=$(wpa_passphrase "$ssid" "$pw") || die "bad password (WPA needs 8 to 63 characters)"
+    printf '%s\n' "$blk" | grep -v '^[[:space:]]*#psk' >> "$CONF"
+  else
+    printf 'network={\n\tssid="%s"\n\tkey_mgmt=NONE\n}\n' "$ssid" >> "$CONF"
+  fi
+  wifi_up
+}
+
+# wifi_save_static always|fallback IP/PREFIX GATEWAY [DNS...]
+wifi_save_static() {
+  mode=$1; addr=$2; gw=$3
+  [ -n "$addr" ] && [ -n "$gw" ] || die "usage: wifi $mode 192.168.1.50/24 192.168.1.1 [dns...]"
+  case "$addr" in */*) ;; *) die "give the address with a prefix, like 192.168.1.50/24" ;; esac
+  shift 3
+  dns=${*:-1.1.1.1 9.9.9.9}
+  mkdir -p "$(dirname "$STATIC")"
+  printf 'MODE=%s\nADDR=%s\nGW=%s\nDNS="%s"\n' "$mode" "$addr" "$gw" "$dns" > "$STATIC"
+  echo "saved to $STATIC - run: wifi up" >&2
+}
+
+case "$cmd" in
+  scan)     wifi_scan ;;
+  connect)  shift; wifi_connect "$@" ;;
+  up)       wifi_up ;;
+  down)     find_if || no_if
+            stop_wifi
+            run ip addr flush dev "$IF"; run ip link set "$IF" down ;;
+  status)   find_if || no_if
+            run iw dev "$IF" link; run ip addr show "$IF"; run ip route ;;
+  list)     [ -f "$CONF" ] && sed -n 's/^[[:space:]]*ssid="\(.*\)"/\1/p' "$CONF" ;;
+  forget)   [ -n "$2" ] || die 'usage: wifi forget "SSID"'; drop_block "$2"; echo "forgot $2" >&2 ;;
+  static)   shift; wifi_save_static always "$@" ;;
+  fallback) shift; wifi_save_static fallback "$@" ;;
+  dhcp)     rm -f "$STATIC" "$ETC/ynnios-wifi-static" "$ETC/sgnnios-wifi-static"; echo "automatic addressing (DHCP) only - run: wifi up" >&2 ;;
+  auto)     case "$2" in
+              on)  nni set WIFI_AUTO yes >/dev/null && echo "will connect at boot (needs a saved network)" >&2 ;;
+              off) nni set WIFI_AUTO no >/dev/null
+                   rm -f "$ETC/ynnios-wifi-auto" "$ETC/sgnnios-wifi-auto"
+                   echo "will not connect at boot" >&2 ;;
+              *)   die "usage: wifi auto on|off" ;;
+            esac ;;
+  *)        echo "wifi: unknown command '$cmd'" >&2; usage >&2; exit 1 ;;
+esac

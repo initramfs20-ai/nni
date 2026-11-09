@@ -1,0 +1,2 @@
+DESC="kernel messages into the system log (busybox klogd)"
+CMD="klogd -n"

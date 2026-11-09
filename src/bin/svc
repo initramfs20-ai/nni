@@ -1,0 +1,223 @@
+#!/bin/sh
+# svc - the nni service manager. Same commands on YnniOS and SGnniOS.
+# A service is a small file in /etc/nni/services/NAME.svc. svc keeps each running
+# service under a tiny supervisor that restarts it if it dies, and logs its output
+# to /var/log/nni/NAME.log.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bb/bin
+
+R=${NNI_ROOT:-}
+SVCDIR=$R/etc/nni/services
+ENDIR=$R/etc/nni/enabled
+RUNDIR=$R/run/nni/svc
+LOGDIR=$R/var/log/nni
+SELF=$(command -v "$0" 2>/dev/null || echo "$0")
+
+die() { echo "svc: $*" >&2; exit 1; }
+need_root() { [ -n "$R" ] || [ "$(id -u)" -eq 0 ] || die "'$1' needs root (try: doas svc $1 ...)"; }
+
+usage() {
+cat <<'EOF'
+svc - nni service manager
+
+  svc list                    every service: enabled? running?
+  svc status NAME             details of one service
+  svc start NAME              start now (does not change boot)
+  svc stop NAME               stop now
+  svc restart NAME
+  svc enable NAME             start at every boot, and start it now
+  svc disable NAME            do not start at boot, and stop it now
+  svc log NAME [-f]           show the service's log (-f keeps following)
+  svc new NAME "COMMAND"      create a service from a command that stays in
+                              the foreground, e.g.  svc new web "httpd -f -p 8080"
+  svc edit NAME               open the service file in $EDITOR (vi)
+
+Service files: /etc/nni/services/NAME.svc
+  DESC="what it is"
+  CMD="program --foreground-flag"   (must NOT go to the background)
+  PRE="command run before each start"   (optional)
+  USER="name"                         (optional: run as this user)
+  RESTART="yes"                       (no = run once, do not restart)
+EOF
+}
+
+svcfile() { echo "$SVCDIR/$1.svc"; }
+exists()  { [ -f "$(svcfile "$1")" ] || die "no service '$1' (svc list shows them; svc new creates one)"; }
+
+load_def() {
+  DESC=; CMD=; PRE=; USER=; RESTART=yes
+  # shellcheck disable=SC1090
+  . "$(svcfile "$1")"
+  [ -n "$CMD" ] || die "$1.svc has no CMD"
+}
+
+alive() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null; }
+sup_pid() { cat "$RUNDIR/$1/supervisor.pid" 2>/dev/null; }
+child_pid() { cat "$RUNDIR/$1/pid" 2>/dev/null; }
+running() { alive "$(sup_pid "$1")"; }
+enabled() { [ -e "$ENDIR/$1" ]; }
+
+log_line() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] svc: $2" >> "$LOGDIR/$1.log"; }
+
+rotate() {
+  f="$LOGDIR/$1.log"
+  [ -f "$f" ] || return 0
+  size=$(wc -c < "$f" 2>/dev/null || echo 0)
+  [ "$size" -gt 1048576 ] && mv -f "$f" "$f.1"
+  return 0
+}
+
+# ---------------------------------------------------------------- supervisor
+# Runs in the background, one per service. Restarts the command when it dies,
+# with crash-loop protection, until "svc stop" creates the "down" file.
+supervise() {
+  name=$1
+  load_def "$name"
+  d="$RUNDIR/$name"; mkdir -p "$d" "$LOGDIR"
+  echo $$ > "$d/supervisor.pid"
+  rm -f "$d/failed"
+  quick=0
+  run_as=
+  [ -n "$USER" ] && run_as="setpriv --reuid=$USER --regid=$(id -g "$USER" 2>/dev/null || echo "$USER") --init-groups"
+  while [ ! -e "$d/down" ]; do
+    rotate "$name"
+    if [ -n "$PRE" ]; then
+      sh -c "$PRE" >> "$LOGDIR/$name.log" 2>&1 || log_line "$name" "PRE command failed (continuing)"
+    fi
+    log_line "$name" "starting: $CMD"
+    started=$(date +%s)
+    # shellcheck disable=SC2086
+    $run_as sh -c "exec $CMD" >> "$LOGDIR/$name.log" 2>&1 < /dev/null &
+    child=$!
+    echo "$child" > "$d/pid"
+    wait "$child"; rc=$?
+    rm -f "$d/pid"
+    [ -e "$d/down" ] && break
+    log_line "$name" "exited with code $rc"
+    [ "$RESTART" = no ] && break
+    if [ $(( $(date +%s) - started )) -lt 5 ]; then quick=$((quick+1)); else quick=0; fi
+    if [ "$quick" -ge 5 ]; then
+      log_line "$name" "died 5 times in a row right after starting - giving up (fix it, then: svc start $name)"
+      touch "$d/failed"
+      break
+    fi
+    sleep 2
+  done
+  rm -f "$d/supervisor.pid"
+}
+
+# ---------------------------------------------------------------- actions
+do_start() {
+  name=$1; exists "$name"; load_def "$name"
+  if running "$name"; then echo "$name is already running"; return 0; fi
+  prog=${CMD%% *}
+  command -v "$prog" >/dev/null 2>&1 || die "'$prog' is not installed (needed by $name)"
+  d="$RUNDIR/$name"; mkdir -p "$d" "$LOGDIR"
+  rm -f "$d/down" "$d/failed"
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$SELF" __supervise "$name" < /dev/null > /dev/null 2>&1 &
+  else
+    "$SELF" __supervise "$name" < /dev/null > /dev/null 2>&1 &
+  fi
+  # give it a moment to come up so the message is honest
+  n=0
+  while [ "$n" -lt 20 ]; do
+    alive "$(child_pid "$name")" && { echo "started $name"; return 0; }
+    [ -e "$d/failed" ] && break
+    n=$((n+1)); sleep 0.1 2>/dev/null || sleep 1
+  done
+  if running "$name"; then echo "started $name"; return 0; fi
+  if [ "$RESTART" = no ]; then echo "$name ran (run-once job) - output: svc log $name"; return 0; fi
+  echo "svc: $name did not stay up - see: svc log $name" >&2; return 1
+}
+
+do_stop() {
+  name=$1; exists "$name"
+  d="$RUNDIR/$name"
+  if ! running "$name"; then echo "$name is not running"; rm -f "$d/pid"; return 0; fi
+  touch "$d/down"
+  c=$(child_pid "$name")
+  alive "$c" && kill -TERM "$c" 2>/dev/null
+  n=0
+  while running "$name" && [ "$n" -lt 100 ]; do
+    [ "$n" -eq 50 ] && { c=$(child_pid "$name"); alive "$c" && kill -KILL "$c" 2>/dev/null; }
+    n=$((n+1)); sleep 0.1 2>/dev/null || sleep 1
+  done
+  if running "$name"; then kill -KILL "$(sup_pid "$name")" 2>/dev/null; fi
+  rm -f "$d/supervisor.pid" "$d/pid"
+  echo "stopped $name"
+}
+
+do_status() {
+  name=$1; exists "$name"; load_def "$name"
+  state=stopped
+  running "$name" && state="running (pid $(child_pid "$name"))"
+  [ -e "$RUNDIR/$name/failed" ] && state="FAILED - see: svc log $name"
+  echo "$name - ${DESC:-no description}"
+  echo "  state    $state"
+  echo "  boot     $(enabled "$name" && echo enabled || echo disabled)"
+  echo "  command  $CMD"
+  [ -n "$USER" ] && echo "  user     $USER"
+  echo "  log      /var/log/nni/$name.log"
+}
+
+do_list() {
+  found=0
+  printf '%-12s %-9s %-9s %s\n' SERVICE BOOT STATE DESCRIPTION
+  for f in "$SVCDIR"/*.svc; do
+    [ -f "$f" ] || continue
+    found=1
+    name=$(basename "$f" .svc)
+    DESC=; . "$f" 2>/dev/null
+    st=stopped; running "$name" && st=running; [ -e "$RUNDIR/$name/failed" ] && st=FAILED
+    en=-; enabled "$name" && en=enabled
+    printf '%-12s %-9s %-9s %s\n' "$name" "$en" "$st" "$DESC"
+  done
+  [ "$found" = 1 ] || echo "(no services defined yet - svc new NAME \"COMMAND\")"
+}
+
+do_new() {
+  name=$1; shift
+  [ -n "$name" ] && [ -n "$*" ] || die 'usage: svc new NAME "COMMAND"'
+  case "$name" in *[!A-Za-z0-9_-]*) die "use only letters, digits, - and _ in the name" ;; esac
+  f=$(svcfile "$name")
+  [ -e "$f" ] && die "$name already exists ($f)"
+  mkdir -p "$SVCDIR"
+  cat > "$f" <<EOF
+DESC="$name (made with svc new)"
+CMD="$*"
+# PRE=""        command to run before each start
+# USER=""       run as this user instead of root
+# RESTART="yes" set to no for a run-once job
+EOF
+  echo "created $f"
+  echo "start it now: svc start $name     at every boot: svc enable $name"
+}
+
+cmd=${1:-list}
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  list|ls)   do_list ;;
+  status)    if [ -n "$1" ]; then do_status "$1"; else do_list; fi ;;
+  start)     need_root start; [ -n "$1" ] || die "usage: svc start NAME"; for s in "$@"; do do_start "$s"; done ;;
+  stop)      need_root stop;  [ -n "$1" ] || die "usage: svc stop NAME";  for s in "$@"; do do_stop "$s"; done ;;
+  restart)   need_root restart; [ -n "$1" ] || die "usage: svc restart NAME"
+             for s in "$@"; do do_stop "$s" >/dev/null; do_start "$s"; done ;;
+  enable)    need_root enable; [ -n "$1" ] || die "usage: svc enable NAME"
+             for s in "$@"; do exists "$s"; mkdir -p "$ENDIR"; touch "$ENDIR/$s"; echo "$s will start at boot"; do_start "$s"; done ;;
+  disable)   need_root disable; [ -n "$1" ] || die "usage: svc disable NAME"
+             for s in "$@"; do exists "$s"; rm -f "$ENDIR/$s"; echo "$s will not start at boot"; do_stop "$s"; done ;;
+  log|logs)  [ -n "$1" ] || die "usage: svc log NAME [-f]"
+             f="$LOGDIR/$1.log"; [ -f "$f" ] || die "no log yet for $1"
+             if [ "$2" = -f ]; then exec tail -f "$f"; else tail -n 40 "$f"; fi ;;
+  new)       need_root new; do_new "$@" ;;
+  edit)      need_root edit; [ -n "$1" ] || die "usage: svc edit NAME"; exists "$1"; exec ${EDITOR:-vi} "$(svcfile "$1")" ;;
+  boot)      # started by rc.sysinit: start everything that is enabled
+             for f in "$ENDIR"/*; do [ -e "$f" ] || continue; n=$(basename "$f")
+               [ -f "$(svcfile "$n")" ] && do_start "$n" >/dev/null 2>&1 & done; wait ;;
+  shutdown)  # started by inittab on poweroff/reboot
+             for f in "$SVCDIR"/*.svc; do [ -f "$f" ] || continue; n=$(basename "$f" .svc)
+               running "$n" && do_stop "$n" >/dev/null 2>&1; done ;;
+  __supervise) supervise "$1" ;;
+  help|-h|--help) usage ;;
+  *)         echo "svc: unknown command '$cmd'" >&2; usage >&2; exit 1 ;;
+esac

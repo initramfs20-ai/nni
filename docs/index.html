@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nni: YnniOS and SGnniOS</title>
+<style>
+  :root { --bg:#160409; --panel:#24080f; --text:#f3e8ea; --muted:#c3a7ad; --amber:#f2a01e; --yolk:#ffd640; --crimson:#9e122e; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 48px 16px 64px; }
+  header { display:flex; gap:28px; align-items:center; flex-wrap:wrap; }
+  header img { width: 150px; height:auto; }
+  header > div { flex: 1 1 300px; }
+  h1 { margin:0; font-size: 2.6rem; letter-spacing:-0.02em; color:var(--yolk); }
+  .tag { color:var(--muted); margin:4px 0 0; }
+  h2 { color:var(--amber); font-size:1.25rem; margin:44px 0 12px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:14px; }
+  .card { background:var(--panel); border:1px solid #3d1220; border-radius:10px; padding:16px 18px; }
+  .card h3 { margin:0 0 6px; color:var(--yolk); font-size:1.05rem; }
+  .card p { margin:0; color:var(--muted); }
+  pre { background:#0d0205; border:1px solid #3d1220; border-radius:8px; padding:14px; overflow-x:auto; font-size:.9rem; }
+  code { font-family: ui-monospace, "DejaVu Sans Mono", monospace; }
+  a { color:var(--amber); }
+  footer { margin-top:56px; color:var(--muted); font-size:.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="chick.png" alt="the nni chick">
+    <div>
+      <h1>nni</h1>
+      <p class="tag">YnniOS and SGnniOS: two busybox distros named after a toy chicken that keymashed a keyboard.</p>
+    </div>
+  </header>
+
+  <h2>The family</h2>
+  <div class="grid">
+    <div class="card"><h3>YnniOS</h3><p>Debian underneath, busybox as init, no systemd. Minimal for servers and homelabs, full with the icewm desktop. Packages through <code>pol</code>.</p></div>
+    <div class="card"><h3>SGnniOS</h3><p>Source-Genius: Gentoo underneath, compiled on your machine through <code>spol</code>. Chickens instead of penguins at boot.</p></div>
+    <div class="card"><h3>Shared core</h3><p><code>nni</code> settings in one file, the <code>svc</code> service manager, one-command <code>wifi</code>, the boot splash and the handbook.</p></div>
+  </div>
+
+  <h2>Add the YnniOS package repository</h2>
+  <p>New YnniOS ISOs already have it. On an older install, run as root:</p>
+<pre><code id="apt">pol update &amp;&amp; pol install ca-certificates
+wget -O /usr/share/keyrings/nni-archive-keyring.gpg BASE/apt/nni-archive-keyring.gpg
+wget -O /etc/apt/sources.list.d/nni.sources BASE/apt/nni.sources
+pol update &amp;&amp; pol install nni-base</code></pre>
+
+  <h2>Add the SGnniOS overlay</h2>
+<pre><code id="overlay">spol install dev-vcs/git
+printf '[nni]\nlocation = /var/db/repos/nni\nsync-type = git\nsync-uri = REPO.git\nsync-depth = 1\n' \
+  &gt; /etc/portage/repos.conf/nni.conf
+emerge --sync nni &amp;&amp; spol install app-misc/nni-base</code></pre>
+
+  <footer>Source, releases and the full guide: <a id="repo" href="#">GitHub</a>. MIT licensed.</footer>
+</main>
+<script>
+  // fill in this site's own addresses so the commands can be pasted as they are
+  (function () {
+    var host = location.hostname, parts = location.pathname.split('/').filter(Boolean);
+    var base = location.origin + (parts.length ? '/' + parts[0] : '');
+    var owner = host.endsWith('.github.io') ? host.replace('.github.io', '') : 'YOUR-GITHUB-USER';
+    var repo = 'https://github.com/' + owner + '/' + (parts[0] || 'nni');
+    var a = document.getElementById('apt'), o = document.getElementById('overlay');
+    a.textContent = a.textContent.split('BASE').join(base);
+    o.textContent = o.textContent.split('REPO').join(repo);
+    document.getElementById('repo').href = repo;
+  })();
+</script>
+</body>
+</html>

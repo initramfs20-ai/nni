@@ -1,0 +1,5 @@
+! nni default xterm look: dark background so fastfetch labels stay readable
+XTerm*background: black
+XTerm*foreground: white
+XTerm*faceName: DejaVu Sans Mono
+XTerm*faceSize: 11

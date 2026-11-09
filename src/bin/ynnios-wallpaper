@@ -1,0 +1,3 @@
+#!/bin/sh
+# old name, kept so existing habits keep working
+exec nni wallpaper "$@"

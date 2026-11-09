@@ -1,0 +1,3 @@
+DESC="scheduled jobs (busybox crond); edit them with: crontab -e"
+PRE="mkdir -p /var/spool/cron/crontabs"
+CMD="crond -f -l 8"

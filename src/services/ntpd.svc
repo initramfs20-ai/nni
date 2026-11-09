@@ -1,0 +1,2 @@
+DESC="keeps the clock right over the network (busybox ntpd)"
+CMD="ntpd -n -p pool.ntp.org"

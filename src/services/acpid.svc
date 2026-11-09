@@ -1,0 +1,3 @@
+DESC="power button and lid events (busybox acpid; actions in /etc/acpi)"
+PRE="mkdir -p /etc/acpi"
+CMD="acpid -f"

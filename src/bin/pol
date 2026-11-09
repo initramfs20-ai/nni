@@ -1,0 +1,58 @@
+#!/bin/sh
+# pol - the YnniOS package manager.
+# A front end for the real apt tools, which YnniOS moves out of the way
+# (apt, apt-get and apt-cache are dpkg-diverted into /usr/lib/pol).
+APT_GET=/usr/lib/pol/apt-get
+APT_CACHE=/usr/lib/pol/apt-cache
+
+usage() {
+cat <<'EOF'
+pol - Package Optimized Layer, the YnniOS package manager
+
+  pol update                 refresh package lists
+  pol upgrade                upgrade installed packages
+  pol full-upgrade           upgrade, allowing installs and removals
+  pol install <pkg>...       install packages
+  pol reinstall <pkg>...     reinstall packages (restores deleted files)
+  pol remove <pkg>...        remove packages
+  pol purge <pkg>...         remove packages and their config files
+  pol autoremove             remove unused dependencies
+  pol clean                  clear the download cache
+  pol search <term>          search available packages
+  pol show <pkg>             show package details
+  pol policy <pkg>           show versions and sources
+  pol list                   list installed packages
+  pol files <pkg>            list the files a package installed
+  pol owns <file>            find which package owns a file
+  pol help                   show this text
+
+Extra apt options (like -y) can be added after the command.
+EOF
+}
+
+need_root() { [ "$(id -u)" -eq 0 ] || { echo "pol: '$1' needs root" >&2; exit 1; }; }
+need_args() { [ "$#" -gt 1 ] || { echo "pol: '$1' needs an argument (try: pol help)" >&2; exit 1; }; }
+
+cmd=${1:-help}
+[ $# -gt 0 ] && shift
+
+case "$cmd" in
+  update|sync)                need_root "$cmd"; exec "$APT_GET" update "$@" ;;
+  upgrade)                    need_root "$cmd"; exec "$APT_GET" upgrade "$@" ;;
+  full-upgrade|dist-upgrade)  need_root "$cmd"; exec "$APT_GET" dist-upgrade "$@" ;;
+  install|add)                need_root "$cmd"; need_args "$cmd" "$@"; exec "$APT_GET" install "$@" ;;
+  reinstall)                  need_root "$cmd"; need_args "$cmd" "$@"; exec "$APT_GET" install --reinstall "$@" ;;
+  remove|rm|del)              need_root "$cmd"; need_args "$cmd" "$@"; exec "$APT_GET" remove "$@" ;;
+  purge)                      need_root "$cmd"; need_args "$cmd" "$@"; exec "$APT_GET" purge "$@" ;;
+  autoremove|tidy)            need_root "$cmd"; exec "$APT_GET" autoremove --purge "$@" ;;
+  clean)                      need_root "$cmd"; exec "$APT_GET" clean "$@" ;;
+  search|find)                need_args "$cmd" "$@"; exec "$APT_CACHE" search "$@" ;;
+  show|info)                  need_args "$cmd" "$@"; exec "$APT_CACHE" show "$@" ;;
+  policy)                     need_args "$cmd" "$@"; exec "$APT_CACHE" policy "$@" ;;
+  list|installed)             exec dpkg-query -W -f='${binary:Package}\t${Version}\n' ;;
+  files)                      need_args "$cmd" "$@"; exec dpkg -L "$@" ;;
+  owns|which)                 need_args "$cmd" "$@"; exec dpkg -S "$@" ;;
+  help|-h|--help)             usage ;;
+  version|-v|--version)       echo "pol 1.0 - Package Optimized Layer (YnniOS)" ;;
+  *)                          echo "pol: unknown command '$cmd'" >&2; usage >&2; exit 1 ;;
+esac

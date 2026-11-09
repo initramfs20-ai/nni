@@ -1,0 +1,62 @@
+#!/bin/sh
+# /usr/lib/nni/rc.sysinit - boot script for the nni family, run once by busybox
+# init (::sysinit: in /etc/inittab). Your own boot commands go in /etc/rc.local.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bb/bin
+
+mount -t proc proc /proc 2>/dev/null
+mount -t sysfs sys /sys 2>/dev/null
+mount -t devtmpfs devtmpfs /dev 2>/dev/null
+mkdir -p /dev/pts /dev/shm
+mount -t devpts devpts /dev/pts 2>/dev/null
+mount -t tmpfs tmpfs /dev/shm 2>/dev/null
+mount -t tmpfs tmpfs /tmp 2>/dev/null
+# keep the live system's /run (it holds /run/live/medium); only mount tmpfs if /run is bare
+grep -q ' /run ' /proc/mounts || mount -t tmpfs tmpfs /run
+mount -o remount,rw / 2>/dev/null
+mount -a 2>/dev/null                        # /etc/fstab (installed systems)
+[ -d /sys/firmware/efi/efivars ] && mount -t efivarfs efivarfs /sys/firmware/efi/efivars 2>/dev/null
+
+SPLASH=yes; WIFI_AUTO=no
+# shellcheck disable=SC1091
+[ -r /etc/nni.conf ] && . /etc/nni.conf
+
+# the chicken splash, as early as the framebuffer exists
+if [ "$SPLASH" = yes ] && [ -e /dev/fb0 ] && command -v nni-splash >/dev/null 2>&1; then
+  nni-splash /usr/share/nni/splash.ppm 2>/dev/null
+fi
+
+# hostname, time zone, console keymap and font from /etc/nni.conf
+if command -v nni >/dev/null 2>&1; then nni apply --boot >/dev/null 2>&1; else hostname "$(cat /etc/hostname)"; fi
+
+# devices: udev when it is installed (full edition, SGnniOS), otherwise load
+# the drivers the kernel asks for
+UDEVD=
+for u in /lib/systemd/systemd-udevd /usr/lib/systemd/systemd-udevd /sbin/udevd /usr/sbin/udevd; do
+  [ -x "$u" ] && { UDEVD=$u; break; }
+done
+if [ -n "$UDEVD" ]; then
+  "$UDEVD" --daemon
+  udevadm trigger --action=add
+  udevadm settle
+else
+  find /sys/devices -name modalias -type f -exec cat {} + 2>/dev/null \
+    | xargs -r modprobe -ba 2>/dev/null
+fi
+
+ip link set lo up 2>/dev/null
+swapon -a 2>/dev/null
+
+[ -x /etc/rc.local ] && /etc/rc.local
+
+# services marked with "svc enable"
+command -v svc >/dev/null 2>&1 && svc boot
+
+# Wi-Fi at boot (nni set WIFI_AUTO yes); before nni.conf existed, a flag file did this
+[ ! -r /etc/nni.conf ] && { [ -e /etc/ynnios-wifi-auto ] || [ -e /etc/sgnnios-wifi-auto ]; } && WIFI_AUTO=yes
+if [ "$WIFI_AUTO" = yes ]; then
+  command -v wifi >/dev/null 2>&1 && wifi up >/dev/null 2>&1 &
+fi
+
+# hand the screen back to the text console: the shell starts on a clean screen
+[ "$SPLASH" = yes ] && [ -e /dev/fb0 ] && printf '\033[H\033[2J' > /dev/tty1 2>/dev/null
+exit 0

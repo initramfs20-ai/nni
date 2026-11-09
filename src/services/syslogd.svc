@@ -1,0 +1,2 @@
+DESC="system log (busybox syslogd) -> /var/log/messages"
+CMD="syslogd -n -O /var/log/messages"

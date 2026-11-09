@@ -1,0 +1,3 @@
+DESC="tiny web server for /srv/www on port 8080 (busybox httpd)"
+PRE="mkdir -p /srv/www"
+CMD="httpd -f -p 8080 -h /srv/www"

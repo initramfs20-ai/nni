@@ -1,0 +1,94 @@
+#!/bin/sh
+# spol - Sourced Portage-Oriented Linker, the SGnniOS package layer over Portage.
+# (YnniOS's "pol" is the Package Optimized Layer over apt.)
+# emerge stays available underneath; spol just gives it a friendlier face.
+
+usage() {
+cat <<'EOF'
+spol - Sourced Portage-Oriented Linker (SGnniOS)
+
+  spol sync                  fetch the Portage tree (first run: emerge-webrsync)
+  spol install <pkg>...      build and install from source
+  spol reinstall <pkg>...    rebuild and reinstall (restores deleted files)
+  spol remove <pkg>...       uninstall packages
+  spol autoremove            remove packages nothing needs any more
+  spol upgrade               update the whole system
+  spol search <term>         search the Portage tree
+  spol show <pkg>            what would be built, with USE flags
+  spol use <pkg> <flags...>  set USE flags, e.g.  spol use net-wireless/iw -foo
+  spol use                   show your saved USE settings
+  spol jobs <N>              set parallel compile jobs (MAKEOPTS=-jN)
+  spol list                  list installed packages
+  spol files <pkg>           list the files a package installed
+  spol owns <file>           find which package owns a file
+  spol clean                 delete downloaded source tarballs
+  spol help | spol version
+
+Options (anywhere after the command):
+  -b, --bin    use a cached binary package when one exists (much faster)
+  -y, --yes    do not ask for confirmation
+
+Tip: with 16 GB of RAM, big builds (llvm, rust, browsers) like "spol jobs 2".
+EOF
+}
+
+die() { echo "spol: $*" >&2; exit 1; }
+need_root() { [ "$(id -u)" -eq 0 ] || die "'$1' needs root"; }
+need_args() { [ "$#" -gt 1 ] || die "'$1' needs an argument (try: spol help)"; }
+
+cmd=${1:-help}
+[ $# -gt 0 ] && shift
+
+ASK=--ask
+BIN=
+n=$#; i=0
+while [ "$i" -lt "$n" ]; do
+  a=$1; shift; i=$((i+1))
+  case "$a" in
+    -b|--bin) BIN=--usepkg ;;
+    -y|--yes) ASK= ;;
+    *)        set -- "$@" "$a" ;;
+  esac
+done
+
+REPO=/var/db/repos/gentoo
+need_tree() { [ -d "$REPO/profiles" ] || die "no Portage tree yet. Run: spol sync"; }
+
+# shellcheck disable=SC2086
+case "$cmd" in
+  sync|update)   need_root "$cmd"
+                 if [ -d "$REPO/profiles" ]; then exec emerge --sync; else exec emerge-webrsync; fi ;;
+  install|add)   need_root "$cmd"; need_args "$cmd" "$@"; need_tree
+                 exec emerge $ASK --verbose $BIN --noreplace "$@" ;;
+  reinstall)     need_root "$cmd"; need_args "$cmd" "$@"; need_tree
+                 exec emerge $ASK --verbose $BIN --oneshot "$@" ;;
+  remove|rm|del) need_root "$cmd"; need_args "$cmd" "$@"
+                 exec emerge $ASK --verbose --unmerge "$@" ;;
+  autoremove|tidy) need_root "$cmd"; exec emerge $ASK --verbose --depclean ;;
+  upgrade)       need_root "$cmd"; need_tree
+                 exec emerge $ASK --verbose $BIN --update --deep --newuse @world ;;
+  search|find)   need_args "$cmd" "$@"; need_tree; exec emerge --search "$@" ;;
+  show|info)     need_args "$cmd" "$@"; need_tree; exec emerge --pretend --verbose --oneshot "$@" ;;
+  use)           f=/etc/portage/package.use/spol
+                 if [ "$#" -eq 0 ]; then [ -f "$f" ] && cat "$f"; exit 0; fi
+                 need_root "$cmd"
+                 [ "$#" -ge 2 ] || die "usage: spol use <category/package> <flags...>"
+                 mkdir -p /etc/portage/package.use; echo "$*" >> "$f"
+                 echo "saved to $f - rebuild with: spol reinstall $1" ;;
+  jobs)          need_root "$cmd"; need_args "$cmd" "$@"
+                 case "$1" in ''|*[!0-9]*) die "give a number, e.g. spol jobs 2" ;; esac
+                 sed -i "s/^MAKEOPTS=.*/MAKEOPTS=\"-j$1\"/" /etc/portage/make.conf
+                 echo "MAKEOPTS is now -j$1 (rebuilding with build-sgnnios.sh resets it)" ;;
+  list|installed) for d in /var/db/pkg/*/*; do [ -d "$d" ] && echo "${d#/var/db/pkg/}"; done ;;
+  files)         need_args "$cmd" "$@"
+                 case "$1" in */*) set -- /var/db/pkg/$1-[0-9]* ;; *) set -- /var/db/pkg/*/$1-[0-9]* ;; esac
+                 for d in "$@"; do [ -f "$d/CONTENTS" ] && awk '$1=="obj"||$1=="sym" {print $2}' "$d/CONTENTS"; done ;;
+  owns|which)    need_args "$cmd" "$@"
+                 grep -lF " $1 " /var/db/pkg/*/*/CONTENTS 2>/dev/null | while read -r c; do
+                   p=${c%/CONTENTS}; echo "${p#/var/db/pkg/}"
+                 done ;;
+  clean)         need_root "$cmd"; rm -rf /var/cache/distfiles/* && echo "source tarballs removed" ;;
+  help|-h|--help) usage ;;
+  version|-v|--version) echo "spol 0.1 - Sourced Portage-Oriented Linker (SGnniOS)" ;;
+  *)             echo "spol: unknown command '$cmd'" >&2; usage >&2; exit 1 ;;
+esac

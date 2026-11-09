@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<longdescription>
+		The pieces that make SGnniOS itself: the nni settings command and
+		/etc/nni.conf, the svc service manager, the wifi helper, the spol
+		package layer, the busybox boot script, the handbook, the chicken
+		logos, the boot splash and the chicken kernel logo.
+	</longdescription>
+</pkgmetadata>

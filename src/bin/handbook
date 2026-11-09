@@ -1,0 +1,6 @@
+#!/bin/sh
+# handbook - open the nni handbook for this system
+d=$(cat /etc/nni/distro 2>/dev/null || echo ynnios)
+f=/usr/share/nni/handbook-$d.txt
+[ -f "$f" ] || f=/usr/share/nni/handbook-ynnios.txt
+exec ${PAGER:-less} "$f"
