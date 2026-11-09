@@ -1,0 +1,25 @@
+.TH NNI\-SPLASH 8 "2026-11-09" "nni @VERSION@" "nni family manual"
+.SH NAME
+nni\-splash \- draw a picture on the Linux framebuffer
+.SH SYNOPSIS
+.B nni\-splash
+.I IMAGE.ppm
+.RI [ DEVICE ]
+.SH DESCRIPTION
+Fills the screen with the picture's top\-left colour and draws the picture
+in the middle, enlarged by a whole number when the screen has room. The
+boot script uses it to show the chicken while booting (setting SPLASH in
+.BR nni.conf (5)).
+The picture must be a binary PPM (P6, 255 levels). The device defaults to
+.IR /dev/fb0 ;
+16, 24 and 32 bits per pixel are supported.
+.SH ENVIRONMENT
+.TP
+.B NNI_SPLASH_TEST
+.RI \(dq "WIDTH HEIGHT BPP FILE" \(dq
+writes what would be drawn to FILE instead of a real framebuffer.
+.SH FILES
+.I /usr/share/nni/splash.ppm
+.SH SEE ALSO
+.BR nni (8),
+.BR nni.conf (5)

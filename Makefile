@@ -29,6 +29,12 @@ install: all
 	install -m755 out/nni-splash $(DESTDIR)$(PREFIX)/bin/
 	if [ "$(DISTRO)" = ynnios ]; then install -m755 src/bin/pol src/bin/ynnios-wallpaper $(DESTDIR)$(PREFIX)/bin/; fi
 	if [ "$(DISTRO)" = sgnnios ]; then install -m755 src/bin/spol $(DESTDIR)$(PREFIX)/bin/; fi
+	install -d $(DESTDIR)$(PREFIX)/share/man/man1 $(DESTDIR)$(PREFIX)/share/man/man5 $(DESTDIR)$(PREFIX)/share/man/man8
+	for m in src/man/*.[158]; do \
+	  n=$$(basename $$m); sec=$${n##*.}; \
+	  case "$$n:$(DISTRO)" in pol.8:sgnnios|spol.8:ynnios) continue ;; esac; \
+	  sed 's/@VERSION@/$(VERSION)/g' $$m > $(DESTDIR)$(PREFIX)/share/man/man$$sec/$$n; \
+	done
 	install -m755 src/lib/rc.sysinit src/lib/udhcpc.script $(DESTDIR)$(PREFIX)/lib/nni/
 	install -m644 src/services/*.svc $(DESTDIR)/etc/nni/services/
 	install -m644 src/profile.d/nni.sh $(DESTDIR)/etc/profile.d/
@@ -50,6 +56,7 @@ install-artwork:
 
 check:
 	for f in src/bin/* src/lib/* src/profile.d/*; do sh -n "$$f" || exit 1; done
+	@if command -v groff >/dev/null; then for m in src/man/*.[158]; do w=$$(groff -man -Tutf8 -ww -z $$m 2>&1); [ -z "$$w" ] || { echo "$$m: $$w"; exit 1; }; done; echo "man pages are clean"; fi
 	@echo "all scripts parse"
 
 clean:

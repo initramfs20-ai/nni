@@ -1,0 +1,137 @@
+.TH SVC 8 "2026-11-09" "nni @VERSION@" "nni family manual"
+.SH NAME
+svc \- the nni service manager
+.SH SYNOPSIS
+.B svc
+.RB [ list ]
+.br
+.B svc
+.BR start | stop | restart | status
+.I NAME ...
+.br
+.B svc
+.BR enable | disable
+.I NAME ...
+.br
+.B svc log
+.I NAME
+.RB [ \-f ]
+.br
+.B svc new
+.I NAME COMMAND
+.br
+.B svc edit
+.I NAME
+.SH DESCRIPTION
+YnniOS and SGnniOS have no systemd: busybox is the init program.
+.B svc
+starts long\-running programs (services, also called daemons), keeps each
+one under a small supervisor that starts it again if it dies, and saves
+everything the program prints in
+.IR /var/log/nni/NAME.log .
+It works the same on both distributions.
+.PP
+A service whose program dies five times in a row within five seconds of
+starting is given up on and shown as
+.B FAILED
+by
+.BR "svc list" ;
+fix the cause, then start it again.
+.SH COMMANDS
+.TP
+.B list
+Every service, whether it starts at boot, and whether it is running.
+.TP
+.BI start " NAME"
+Start now. Does not change what happens at boot.
+.TP
+.BI stop " NAME"
+Stop now (SIGTERM, then SIGKILL after five seconds).
+.TP
+.BI restart " NAME"
+Stop, then start.
+.TP
+.BI status " NAME"
+State, process ID, boot setting, command and log file of one service.
+.TP
+.BI enable " NAME"
+Start at every boot, and start it now.
+.TP
+.BI disable " NAME"
+Do not start at boot, and stop it now.
+.TP
+.BI log " NAME " \fR[\fB\-f\fR]
+The last 40 lines of the service's log;
+.B \-f
+keeps following new lines.
+.TP
+.BI new " NAME COMMAND"
+Create a service file from a command line.
+.TP
+.BI edit " NAME"
+Open the service file in
+.B $EDITOR
+(vi by default).
+.TP
+.BR boot ", " shutdown
+Used by the boot script and by
+.I /etc/inittab
+to start the enabled services and to stop everything on poweroff.
+.SH SERVICE FILES
+Each service is described by
+.IR /etc/nni/services/NAME.svc ,
+a small file of shell variables:
+.TP
+.B DESC
+One line saying what it is.
+.TP
+.B CMD
+The command. It must stay in the foreground: do not use options such as
+\-d or \-\-daemon that send the program to the background, because
+.B svc
+does that itself.
+.TP
+.B PRE
+Optional command run before every start, for example to create a directory.
+.TP
+.B USER
+Optional user to run the command as.
+.TP
+.B RESTART
+.B no
+for a job that should run once and not be restarted.
+.PP
+Example,
+.IR /etc/nni/services/web.svc :
+.PP
+.nf
+DESC="my web server"
+PRE="mkdir \-p /srv/www"
+CMD="httpd \-f \-p 8080 \-h /srv/www"
+.fi
+.PP
+Ready\-made services: syslogd, klogd, crond, ntpd, acpid, httpd, sshd and
+dbus.
+.SH FILES
+.TP
+.I /etc/nni/services/
+Service files.
+.TP
+.I /etc/nni/enabled/
+One empty file per service that starts at boot.
+.TP
+.I /run/nni/svc/
+Process IDs of running services.
+.TP
+.I /var/log/nni/
+Service logs (rotated at 1 MB).
+.SH EXAMPLES
+.nf
+svc list
+svc enable ntpd
+svc new myapp "/usr/local/bin/myapp \-\-foreground"
+svc log myapp \-f
+.fi
+.SH SEE ALSO
+.BR nni (8),
+.BR handbook (1)

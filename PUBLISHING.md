@@ -100,12 +100,35 @@ sudo bash builders/sgnnios/build-sgnnios.sh
 
 On those systems, `nni update` upgrades the nni core straight from GitHub.
 
+## 9. Put the ISOs up for download
+
+Not everyone has a build PC set up, so publish the ISOs themselves. After the ISOs
+are built, and after `publish` has created the release:
+
+```sh
+sh tools/release.sh isos
+```
+
+This picks up the YnniOS minimal, YnniOS full and SGnniOS ISOs from the project folder
+(any name that starts with `ynnios` and contains `minimal` or `full`, or starts with
+`sgnnios`). It uploads them to the GitHub release as
+`ynnios-VERSION-minimal-amd64.iso` and so on, together with a `SHA256SUMS` file
+signed with the same key as the apt repo. It also updates `docs/isos.json`, which
+fills the **Download** section of `https://<you>.github.io/nni/`.
+
+- GitHub release files must be smaller than 2 GiB. An ISO that size or bigger
+  (SGnniOS can be) goes up in parts, and the website shows how to join them:
+  `cat sgnnios-*.iso.part* > sgnnios.iso`.
+- Uploading several GB takes a while on a home connection. Leave it running.
+- GitHub serves the files for free: the release is your download server.
+
 ## Every release after this
 
 1. Make your changes.
 2. Raise the number in `VERSION`. Change `CODENAME` too if you want a new breed.
 3. Run `sh tools/release.sh build`.
 4. Run `sh tools/release.sh publish`.
+5. Rebuild the ISOs, then run `sh tools/release.sh isos`.
 
 Machines pick the update up with `nni update`, `pol upgrade` or `spol upgrade`.
 

@@ -19,10 +19,17 @@ and share the **nni core**:
 - The busybox boot script, the chicken splash, the handbook, and the `Ynni` icewm theme.
 - Releases with a shared version and a chicken-breed codename. 1.0.0 is "Silkie".
 
+## Download
+
+Ready-made ISOs are on the [project page](https://initramfs20-ai.github.io/nni/#download)
+and on the [releases page](https://github.com/initramfs20-ai/nni/releases). Every command
+has a manual page: `man nni`, `man svc`, `man wifi`, `man pol`, `man spol`, `man nni.conf`.
+
 ## Repository layout
 
 ```
 src/                 the nni core: scripts, boot script, services, logos, handbooks
+src/man/             manual pages
 src/splash/          nni-splash, the C program that draws the boot splash
 artwork/             wallpapers, icewm theme, generated splash/kernel-logo/GRUB pictures
 packaging/debian/    builds nni-base and nni-artwork .deb packages
