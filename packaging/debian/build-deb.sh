@@ -26,6 +26,7 @@ B=$STAGE/nni-base
 # static, so the program runs on any YnniOS no matter which glibc it has
 make -C "$TOP" clean >/dev/null
 make -C "$TOP" install DESTDIR="$B" DISTRO=ynnios REPO_URL="$REPO_URL" CFLAGS="-O2 -static -s" >/dev/null
+gzip -9n "$B"/usr/share/man/man*/*          # Debian keeps man pages compressed
 mkdir -p "$B/DEBIAN"
 size=$(du -sk "$B" | cut -f1)
 cat > "$B/DEBIAN/control" <<EOF

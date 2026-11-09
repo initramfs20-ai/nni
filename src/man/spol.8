@@ -1,0 +1,73 @@
+.TH SPOL 8 "2026-11-09" "nni @VERSION@" "nni family manual"
+.SH NAME
+spol \- Sourced Portage\-Oriented Linker, the SGnniOS package manager
+.SH SYNOPSIS
+.B spol
+.I COMMAND
+.RI [ OPTIONS ]
+.RI [ PACKAGE ...]
+.SH DESCRIPTION
+.B spol
+is the friendly face of Portage on SGnniOS: packages are compiled from
+source on your machine.
+.B emerge
+stays available underneath. Package names are Gentoo names,
+category/name, for example net\-wireless/iw.
+.SH COMMANDS
+.TP
+.B sync
+Fetch the Portage tree and the nni overlay. Do this first.
+.TP
+.BI install " PACKAGE..."
+Build and install.
+.TP
+.BI reinstall " PACKAGE..."
+Rebuild and reinstall (puts deleted files back).
+.TP
+.BI remove " PACKAGE..."
+Uninstall.
+.TP
+.B autoremove
+Remove packages nothing needs.
+.TP
+.B upgrade
+Update the whole system.
+.TP
+.BI search " TERM"
+Search the tree.
+.TP
+.BI show " PACKAGE"
+What would be built, with USE flags.
+.TP
+.BI use " PACKAGE FLAGS..."
+Save USE flags in
+.IR /etc/portage/package.use/spol .
+Without arguments, show them.
+.TP
+.BI jobs " N"
+Number of parallel compile jobs (MAKEOPTS). Big C++ builds need 1\-2 GB
+of memory per job, so lower it if builds run out of memory.
+.TP
+.BR list ", " files " \fIPACKAGE\fP, " owns " \fIFILE\fP"
+Installed packages, their files, and which package owns a file.
+.TP
+.B clean
+Delete downloaded source tarballs.
+.SH OPTIONS
+.TP
+.BR \-b ", " \-\-bin
+Use a cached binary package when one exists (much faster).
+.TP
+.BR \-y ", " \-\-yes
+Do not ask for confirmation.
+.SH EXAMPLES
+.nf
+spol sync
+spol search nano
+spol install app\-editors/nano
+spol jobs 2
+.fi
+.SH SEE ALSO
+.BR pol (8),
+.BR nni (8),
+.BR emerge (1)

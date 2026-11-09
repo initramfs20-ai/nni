@@ -1,0 +1,67 @@
+.TH NNI.CONF 5 "2026-11-09" "nni @VERSION@" "nni family manual"
+.SH NAME
+nni.conf \- system settings of YnniOS and SGnniOS
+.SH SYNOPSIS
+.I /etc/nni.conf
+.SH DESCRIPTION
+One file holds every system setting of an nni family system. It is a list of
+.IB KEY =\(dq VALUE \(dq
+lines; lines starting with
+.B #
+are comments. The easiest way to change a value is
+.BI "nni set " "KEY VALUE" ,
+which also applies it at once. After editing the file by hand, run
+.BR "nni apply" .
+The boot script reads the file on every boot.
+.PP
+Values may not contain quotes, backslashes, dollar signs or backticks.
+.SH SETTINGS
+.TP
+.B HOSTNAME
+Name of the computer. Letters, digits and \- only. Also updates
+.IR /etc/hostname " and " /etc/hosts .
+.TP
+.B TIMEZONE
+A time zone from
+.IR /usr/share/zoneinfo ,
+for example America/Argentina/Buenos_Aires or Europe/Madrid.
+.TP
+.B KEYMAP
+Console keyboard layout, for example la\-latin1, us or es. Needs
+.B loadkeys
+from the kbd package. Empty = keep the default.
+.TP
+.B CONSOLE_FONT
+Console font, for example Lat15\-Terminus16. Needs
+.B setfont
+from the kbd package.
+.TP
+.B XKB_LAYOUT
+Desktop (X11) keyboard layout, for example latam, us or es. Applied when the
+desktop starts.
+.TP
+.B WIFI_AUTO
+.B yes
+connects to the saved Wi\-Fi network at boot (see
+.BR wifi (8)).
+.TP
+.B WALLPAPER
+Desktop wallpaper, by number or name, as listed by
+.BR "nni wallpaper list" .
+.TP
+.B SPLASH
+.B yes
+shows the chicken picture while booting.
+.SH EXAMPLE
+.nf
+HOSTNAME="chick\-lab"
+TIMEZONE="America/Argentina/Buenos_Aires"
+KEYMAP="la\-latin1"
+XKB_LAYOUT="latam"
+WIFI_AUTO="yes"
+WALLPAPER="2"
+SPLASH="yes"
+.fi
+.SH SEE ALSO
+.BR nni (8),
+.BR wifi (8)

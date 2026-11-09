@@ -9,6 +9,8 @@
 #   sh tools/release.sh source    only the source tarball + Gentoo ebuild (no signing)
 #   sh tools/release.sh publish   commit, tag vVERSION, push, and create the GitHub
 #                                 release with the source tarball (needs: gh auth login)
+#   sh tools/release.sh isos      upload the ISOs you built to that release, with a
+#                                 signed SHA256SUMS, and update the download page
 #
 # To make a new version: change VERSION (and CODENAME if you like), then build + publish.
 # Needs on the build PC: git, make, gcc, dpkg-deb, dpkg-scanpackages, gpg, b2sum,
@@ -158,10 +160,97 @@ publish() {
   echo "Gentoo overlay: $REPO_URL.git"
 }
 
+# ---------------------------------------------------------------- ISOs
+# Puts the ISOs on the GitHub release for VERSION, with a signed SHA256SUMS, and
+# writes docs/isos.json, which the download section of the website reads.
+# GitHub release files must be smaller than 2 GiB, so bigger ISOs go up in parts.
+ISO_DIR=${NNI_ISO_DIR:-$TOP}             # where the builders left the ISOs
+LIMIT=${NNI_ISO_LIMIT:-2000000000}       # bytes; ISOs this big or bigger are split
+PART_SIZE=${NNI_PART_SIZE:-1900M}
+
+json_iso() { # file title about size sha parts...
+  f=$1; t=$2; a=$3; z=$4; h=$5; shift 5
+  printf '    {"file": "%s", "title": "%s", "about": "%s", "size": %s, "sha256": "%s", "parts": [' "$f" "$t" "$a" "$z" "$h"
+  sep=
+  for p in "$@"; do printf '%s"%s"' "$sep" "$p"; sep=', '; done
+  printf ']}'
+}
+
+isos() {
+  case "$REPO_URL" in *YOUR-GITHUB-USER*) die "no GitHub remote yet (see PUBLISHING.md)" ;; esac
+  if [ "${NNI_NO_UPLOAD:-0}" != 1 ]; then
+    command -v gh >/dev/null && gh auth status >/dev/null 2>&1 || die "log in to GitHub first: gh auth login"
+    gh release view "v$VERSION" >/dev/null 2>&1 || die "release v$VERSION does not exist yet: run 'sh tools/release.sh publish' first"
+  fi
+  out="$DIST/isos"
+  rm -rf "$out"; mkdir -p "$out"
+  entries=; upload=
+  for spec in \
+    "ynnios-minimal.iso|ynnios-$VERSION-minimal-amd64.iso|YnniOS minimal|Console only. For servers, homelabs, routers and anything with a network cable." \
+    "ynnios-full.iso|ynnios-$VERSION-full-amd64.iso|YnniOS full|The icewm desktop with drivers and Wi-Fi firmware. The everyday edition." \
+    "sgnnios.iso|sgnnios-$VERSION-amd64.iso|SGnniOS|Source-Genius: Gentoo underneath, compiled on your machine, chickens at boot."
+  do
+    src=$(echo "$spec" | cut -d'|' -f1); name=$(echo "$spec" | cut -d'|' -f2)
+    title=$(echo "$spec" | cut -d'|' -f3); about=$(echo "$spec" | cut -d'|' -f4)
+    [ -f "$ISO_DIR/$src" ] || { echo "release: no $src in $ISO_DIR - skipped"; continue; }
+    ln -f "$ISO_DIR/$src" "$out/$name" 2>/dev/null || cp "$ISO_DIR/$src" "$out/$name"
+    size=$(wc -c < "$out/$name" | tr -d ' ')
+    echo "release: checksumming $name ($size bytes)"
+    sha=$(sha256sum "$out/$name" | cut -d' ' -f1)
+    echo "$sha  $name" >> "$out/SHA256SUMS"
+    if [ "$size" -ge "$LIMIT" ]; then
+      echo "release: $name is too big for one GitHub file - splitting it into parts"
+      ( cd "$out" && split -b "$PART_SIZE" -d -a 2 "$name" "$name.part" && rm -f "$name" )
+      parts=$(cd "$out" && ls "$name".part* | tr '\n' ' ')
+      for p in $parts; do
+        echo "$(sha256sum "$out/$p" | cut -d' ' -f1)  $p" >> "$out/SHA256SUMS"
+        upload="$upload $out/$p"
+      done
+    else
+      parts=
+      upload="$upload $out/$name"
+    fi
+    # shellcheck disable=SC2086
+    e=$(json_iso "$name" "$title" "$about" "$size" "$sha" $parts)
+    entries="${entries:+$entries,
+}$e"
+  done
+  [ -n "$entries" ] || die "no ISOs found in $ISO_DIR (build them first)"
+
+  fpr=$(signing_key)
+  gpg --batch --yes --local-user "$fpr" --armor --detach-sign -o "$out/SHA256SUMS.asc" "$out/SHA256SUMS"
+  {
+    echo "{"
+    echo "  \"version\": \"$VERSION\","
+    echo "  \"codename\": \"$CODENAME\","
+    echo "  \"release\": \"$REPO_URL/releases/tag/v$VERSION\","
+    echo "  \"base\": \"$REPO_URL/releases/download/v$VERSION/\","
+    echo "  \"sums\": \"SHA256SUMS\","
+    echo "  \"signature\": \"SHA256SUMS.asc\","
+    echo "  \"isos\": ["
+    printf '%s\n' "$entries"
+    echo "  ]"
+    echo "}"
+  } > "$TOP/docs/isos.json"
+  echo "built: docs/isos.json"
+
+  if [ "${NNI_NO_UPLOAD:-0}" = 1 ]; then echo "release: NNI_NO_UPLOAD=1 - not uploading"; return 0; fi
+  echo "release: uploading to GitHub (big files: this takes a while, depending on your upload speed)"
+  # shellcheck disable=SC2086
+  gh release upload "v$VERSION" $upload "$out/SHA256SUMS" "$out/SHA256SUMS.asc" --clobber
+  git add docs/isos.json
+  git commit -m "ISOs for nni $VERSION" || true
+  git push origin HEAD
+  rm -rf "$out"
+  echo
+  echo "ISOs published. Download page: $PAGES_URL/#download"
+}
+
 case "${1:-}" in
   source)  # just the source tarball + Gentoo ebuild (used by the SGnniOS builder)
            mkdir -p "$DIST"; rm -f "$DIST"/nni-*.tar.gz; source_tarball; gentoo_overlay ;;
   build)   build ;;
   publish) publish ;;
-  *)       echo "usage: sh tools/release.sh build|source|publish" >&2; exit 1 ;;
+  isos)    isos ;;
+  *)       echo "usage: sh tools/release.sh build|source|publish|isos" >&2; exit 1 ;;
 esac

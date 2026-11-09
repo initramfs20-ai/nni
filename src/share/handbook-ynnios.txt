@@ -478,4 +478,9 @@ prefer an easier editor: pol install nano
   Every nni release has a number and a chicken-breed codename; the first
   is 1.0.0 "Silkie". YnniOS and SGnniOS share them. See: nni version
 
+11.6 Manual pages
+  Every nni command has a manual page:
+      man nni   man nni.conf   man svc   man wifi   man pol   man handbook
+  The "man" program comes with the full edition; minimal: pol install man-db.
+
 Have fun, and say hi to the chicken.

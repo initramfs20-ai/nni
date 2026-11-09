@@ -1,0 +1,100 @@
+.TH WIFI 8 "2026-11-09" "nni @VERSION@" "nni family manual"
+.SH NAME
+wifi \- connect to Wi\-Fi in one command
+.SH SYNOPSIS
+.B wifi scan
+.br
+.B wifi connect
+.I SSID
+.RI [ PASSWORD ]
+.br
+.BR "wifi up" " | " "wifi down" " | " "wifi status" " | " "wifi list"
+.br
+.B wifi forget
+.I SSID
+.br
+.BR "wifi fallback" " | " "wifi static"
+.I ADDRESS/PREFIX GATEWAY
+.RI [ DNS ...]
+.br
+.B wifi dhcp
+.br
+.B wifi auto
+.BR on | off
+.SH DESCRIPTION
+.B wifi
+does the usual
+.BR wpa_supplicant ,
+.B udhcpc
+and
+.B ip
+steps for you, and prints each command it runs on a line starting with
+.BR + ,
+so you can see and learn exactly what happens.
+It waits for the network to accept the password before asking for an
+address, which is what makes it work on the first try.
+.SH COMMANDS
+.TP
+.B scan
+Nearby networks, strongest first.
+.TP
+.BI connect " SSID " \fR[\fIPASSWORD\fR]
+Save the network (the password is asked for if not given, and stored
+hashed) and connect. An empty password means an open network.
+.TP
+.B up
+Connect to the saved networks.
+.TP
+.B down
+Disconnect.
+.TP
+.B status
+Link, address and routes.
+.TP
+.B list
+Saved networks.
+.TP
+.BI forget " SSID"
+Remove a saved network.
+.TP
+.BI fallback " ADDRESS/PREFIX GATEWAY " \fR[\fIDNS ...\fR]
+Try DHCP first; if it gives no address within about 30 seconds, use this
+fixed address. DNS servers default to 1.1.1.1 and 9.9.9.9.
+.TP
+.BI static " ADDRESS/PREFIX GATEWAY " \fR[\fIDNS ...\fR]
+Always use this fixed address, never DHCP.
+.TP
+.B dhcp
+Forget the fixed address and use DHCP only.
+.TP
+.BR auto " on|off"
+Connect at every boot. Same as
+.BR "nni set WIFI_AUTO yes" .
+.SH ENVIRONMENT
+.TP
+.B WIFI_IF
+Use this wireless interface instead of the first one found.
+.SH FILES
+.TP
+.I /etc/wpa_supplicant.conf
+Saved networks.
+.TP
+.I /etc/nni/wifi\-static
+The fixed\-address settings of
+.BR fallback " and " static .
+.SH EXAMPLES
+.nf
+wifi scan
+wifi connect "Home Network"
+wifi fallback 192.168.1.50/24 192.168.1.1 1.1.1.1
+wifi auto on
+.fi
+.SH NOTES
+The minimal YnniOS edition needs
+.B pol install wpasupplicant iw
+and the firmware package for the Wi\-Fi card first.
+.SH SEE ALSO
+.BR nni (8),
+.BR nni.conf (5),
+.BR wpa_supplicant (8),
+.BR ip (8)
