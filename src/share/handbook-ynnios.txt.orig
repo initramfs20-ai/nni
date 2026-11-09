@@ -1,0 +1,486 @@
+=====================================================================
+  YnniOS HANDBOOK
+  (a Debian + busybox distro, named after a keymashing toy chicken)
+=====================================================================
+
+Open this any time with:   handbook        (q quits, arrows scroll)
+
+---------------------------------------------------------------------
+1. WHAT YOU ARE RUNNING
+---------------------------------------------------------------------
+YnniOS is built with debootstrap from Debian. Busybox is PID 1 (the
+init program) and supplies many small tools. There are two editions:
+
+  minimal   console only. Busybox shell on tty1 and tty2.
+  full      adds Xorg, the icewm desktop, wireless/graphics drivers
+            and firmware, sound tools and four wallpapers.
+
+Check which one you have:   fastfetch      (the chicken tells you)
+                            nni            (version, codename, settings)
+
+YnniOS belongs to the nni family together with SGnniOS (the Gentoo-based
+sibling). The family shares its own tools, found on no other distro:
+  nni        settings for the whole system, kept in /etc/nni.conf (11.1)
+  svc        starts, stops and supervises services             (11.2)
+  wifi       Wi-Fi in one command                              (section 4)
+  pol        the package manager                               (section 3)
+
+Switch consoles with Alt+F1 / Alt+F2.
+You are root. There is no login prompt and no password.
+
+---------------------------------------------------------------------
+2. THE LIVE SYSTEM
+---------------------------------------------------------------------
+YnniOS boots as a live system: the OS is a read-only squashfs on the
+ISO with a RAM overlay on top. Changes are lost on reboot unless you
+install it to a disk (section 6).
+
+Boot menu entries:
+  YnniOS <edition>                  normal boot
+  YnniOS <edition> (safe graphics)  adds nomodeset; use it if the
+                                    screen stays black or X fails
+  YnniOS <edition> (drop to initramfs shell)
+                                    stops early, for debugging
+
+---------------------------------------------------------------------
+3. POL - THE PACKAGE MANAGER
+---------------------------------------------------------------------
+pol (Package Optimized Layer) replaces apt. The apt commands (apt, apt-get, apt-cache) are moved
+out of your PATH on purpose; pol drives them for you.
+
+  pol update               refresh package lists (needs network)
+  pol install <pkg>        install a package
+  pol remove <pkg>         remove a package
+  pol purge <pkg>          remove a package and its config
+  pol search <term>        search the package list
+  pol show <pkg>           show package details
+  pol list                 list installed packages
+  pol files <pkg>          list files a package installed
+  pol owns <file>          which package owns a file
+  pol upgrade              upgrade everything
+  pol reinstall <pkg>      reinstall (restores deleted files)
+  pol autoremove / clean   tidy up
+  pol help                 full command list
+
+Always run "pol update" once after booting before you install anything.
+In the live system, installs go to RAM and vanish at reboot.
+
+Recommended packages are NOT installed by default, to keep YnniOS
+small. Add the ones you want by name.
+
+The package sources include Debian's "contrib" and "non-free-firmware"
+components so firmware packages are available.
+
+---------------------------------------------------------------------
+4. NETWORKING
+---------------------------------------------------------------------
+Wired:
+  ip link                          find the interface (eth0, enp3s0...)
+  ip link set eth0 up
+  udhcpc -i eth0                   get an address by DHCP
+  ping -c1 deb.debian.org          test
+
+Wi-Fi (full edition; the minimal edition needs "pol install
+wpasupplicant iw" first, and the right firmware package):
+  rfkill unblock wifi              some laptops start with Wi-Fi blocked
+  ip link                          find the wireless interface; the name
+                                   varies (wlan0, wlan2, wlp2s0...)
+  ip link set wlan0 up
+  iw dev wlan0 scan | grep SSID    (optional) list nearby networks
+  wpa_passphrase "SSID" "password" > /tmp/wpa.conf
+  wpa_supplicant -B -i wlan0 -c /tmp/wpa.conf
+  iw dev wlan0 link                are you connected to the access point?
+  udhcpc -i wlan0                  get an address by DHCP
+
+Setting the network by hand (static IP)
+  If DHCP fails or times out, which happens on some laptops and routers,
+  give the interface an address yourself. These numbers are EXAMPLES.
+  Use ones that match your router: its address is usually printed on
+  the router, and often looks like 192.168.1.1 or 192.168.0.1.
+  Pick a free address on the same network as the router.
+
+  ip addr flush dev wlan0                          clear old addresses
+  ip addr add 192.168.1.50/24 dev wlan0            your IP and netmask
+                                                   (/24 = 255.255.255.0)
+  ip route add default via 192.168.1.1 dev wlan0   the router (gateway)
+  echo "nameserver 1.1.1.1" > /etc/resolv.conf     DNS server
+  echo "nameserver 9.9.9.9" >> /etc/resolv.conf    second DNS (optional)
+
+  Test in this order; the first one that fails shows the problem:
+  ping -c1 192.168.1.1             the router: link and address are OK
+  ping -c1 1.1.1.1                 the internet, no DNS needed
+  ping -c1 deb.debian.org          DNS works
+
+  Common errors:
+    "Network is unreachable"   the interface has no address yet. Run the
+                               "ip addr add" line first.
+    "RTNETLINK answers: File exists"   a default route already exists.
+                               Remove it: ip route del default
+    Pings work by number but not by name   fix the nameserver lines.
+  For a cable, use the same commands with eth0 (or enp3s0...) and skip
+  the wpa_supplicant step. To make this automatic at boot, see 10.5.
+
+The "wifi" shortcut
+  Everything above is what the wifi command does for you. It prints each
+  command it runs (lines starting with +) so you can follow along.
+      wifi scan                          nearby networks, strongest first
+      wifi connect "SSID" ["password"]   save the network and connect
+      wifi up / wifi down                reconnect / disconnect
+      wifi status                        link, address, route
+      wifi list / wifi forget "SSID"     manage saved networks
+      wifi fallback 192.168.1.50/24 192.168.1.1 1.1.1.1
+                                         try DHCP first; if it gives no
+                                         address, use this fixed one
+                                         (example numbers)
+      wifi static 192.168.1.50/24 192.168.1.1 1.1.1.1
+                                         always use the fixed address
+      wifi dhcp                          forget the fixed address
+      wifi auto on                       connect by itself at every boot
+  Saved networks live in /etc/wpa_supplicant.conf. The minimal edition
+  needs:  pol install wpasupplicant iw  (plus your card's firmware).
+  If a scan says "busy", run  wifi down  first.
+  The fixed-address options run the "ip addr add", "ip route add default
+  via" and nameserver steps for you on every connection.
+
+---------------------------------------------------------------------
+5. THE FULL EDITION DESKTOP
+---------------------------------------------------------------------
+  * icewm starts automatically on tty1. If X ever exits you get a
+    shell; type "startx" to try again.
+  * Right-click the desktop or use the start menu for Terminal,
+    Handbook, Fastfetch and Wallpapers.
+  * Wallpapers (command line):
+        nni wallpaper list
+        nni wallpaper 3
+    The four wallpapers are in /usr/share/backgrounds/nni (package
+    nni-artwork). The "Ynni" icewm theme uses the same colours.
+  * Drivers: most graphics (Intel, AMD, NVIDIA via nouveau, VESA,
+    fbdev), input, Wi-Fi and common firmware are preinstalled.
+  * Black screen or broken X? Reboot and choose "safe graphics".
+
+---------------------------------------------------------------------
+6. INSTALLING YNNIOS TO A DISK (this is the hard part, on purpose)
+---------------------------------------------------------------------
+There is no installer. The image ships without mkfs.ext4, GRUB or a
+partitioner beyond busybox fdisk. THESE STEPS ERASE THE TARGET DISK.
+Run "fdisk -l" first and be sure which device is the internal disk and
+which is your USB stick. The examples use /dev/sda.
+
+6.0 Get network and package lists (needed for GRUB):
+      ip link set eth0 up ; udhcpc -i eth0 ; pol update
+
+6.1 Check how your computer booted:
+      ls /sys/firmware/efi      exists  -> UEFI  (use 6.3)
+                                missing -> legacy BIOS (use 6.2)
+
+6.2 Legacy BIOS install
+      fdisk /dev/sda            o, n, p, 1, Enter, Enter, a, w
+      mke2fs /dev/sda1          (busybox makes ext2; or "pol reinstall
+                                 e2fsprogs" then mkfs.ext4 /dev/sda1)
+      mkdir -p /mnt/t && mount /dev/sda1 /mnt/t
+      cp -ax / /mnt/t/
+      mkdir -p /mnt/t/proc /mnt/t/sys /mnt/t/dev /mnt/t/run /mnt/t/tmp /mnt/t/boot
+      cp /run/live/medium/boot/vmlinuz /run/live/medium/boot/initrd.img /mnt/t/boot/
+      for d in dev proc sys run; do mount --bind /$d /mnt/t/$d; done
+      chroot /mnt/t /bin/sh
+        pol update && pol install grub-pc
+        grub-install /dev/sda
+        (write /boot/grub/grub.cfg - see 6.4)
+        exit
+
+6.3 UEFI install
+    Secure Boot must be OFF in the firmware settings.
+    GPT is recommended. Busybox fdisk cannot make GPT, so install gdisk:
+      pol install gdisk
+      sgdisk -Z /dev/sda
+      sgdisk -n1:0:+512M -t1:ef00 -n2:0:0 -t2:8300 /dev/sda
+      mkdosfs -F 32 /dev/sda1          (EFI system partition)
+      mke2fs /dev/sda2
+      mkdir -p /mnt/t && mount /dev/sda2 /mnt/t
+      cp -ax / /mnt/t/
+      mkdir -p /mnt/t/proc /mnt/t/sys /mnt/t/dev /mnt/t/run /mnt/t/tmp /mnt/t/boot/efi
+      cp /run/live/medium/boot/vmlinuz /run/live/medium/boot/initrd.img /mnt/t/boot/
+      mount /dev/sda1 /mnt/t/boot/efi
+      for d in dev proc sys run; do mount --bind /$d /mnt/t/$d; done
+      chroot /mnt/t /bin/sh
+        pol update && pol install grub-efi-amd64
+        grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable
+        (write /boot/grub/grub.cfg - see 6.4, but root=/dev/sda2)
+        exit
+    --removable puts GRUB at EFI/BOOT/BOOTX64.EFI, which every UEFI
+    firmware looks for, and needs no EFI variables.
+
+6.4 /boot/grub/grub.cfg
+    Find your root partition's UUID first:  blkid /dev/sda1   (UEFI layout:
+    /dev/sda2; on NVMe laptops the names are /dev/nvme0n1p1, /dev/nvme0n1p2).
+    Booting by UUID works on any disk name.
+      insmod part_gpt
+      insmod part_msdos
+      insmod ext2
+      search --no-floppy --file --set=root /boot/vmlinuz
+      set timeout=3
+      menuentry "YnniOS" {
+        linux  /boot/vmlinuz root=UUID=<your-uuid> rw init=/opt/bb/init quiet
+        initrd /boot/initrd.img
+      }
+    The "search" line makes GRUB find the partition that holds /boot, so
+    it never tries to load the kernel from the network ("no server is
+    specified" means $root was not set to a disk).
+    Do NOT run update-grub afterwards: it only recognises kernels named
+    vmlinuz-<version> and would replace this file with one that has no
+    YnniOS entry. To keep using update-grub, put the menuentry above in
+    /etc/grub.d/40_custom instead.
+
+6.5 Finish:   exit the chroot, then
+      umount -R /mnt/t     (or umount each mount), then: reboot
+    Remove the USB stick when the screen goes dark.
+
+Note: if /run/live/medium does not exist, your ISO was built before
+the /run fix. Rebuild with the current build-iso.sh.
+
+---------------------------------------------------------------------
+7. TROUBLESHOOTING
+---------------------------------------------------------------------
+  Drops to an initramfs "(initramfs)" prompt
+        You picked the debug entry, or the boot medium was not found.
+        Try another USB port, or write the ISO with dd instead of Ventoy.
+  Black screen / no desktop (full)
+        Use "safe graphics". Then "pol update && pol install" the
+        firmware package for your GPU if one is missing.
+  No Wi-Fi
+        "dmesg | grep -i firmware" shows what is missing. Install the
+        matching firmware-* package with pol.
+  "command not found"
+        Busybox provides only some tools. "busybox --list" shows them.
+        Anything else: pol search <name> then pol install <name>.
+  UEFI laptop will not boot the USB
+        Turn Secure Boot off. YnniOS images are not Secure Boot signed.
+        With Ventoy you can instead enrol Ventoy's key (see ventoy.net).
+
+---------------------------------------------------------------------
+8. FILES AND PLACES
+---------------------------------------------------------------------
+  /etc/nni.conf                   all YnniOS settings (nni list)
+  /etc/nni/services/              service files (svc)
+  /etc/nni/enabled/               services started at boot
+  /etc/rc.local                   your own boot commands (make it executable)
+  /etc/os-release                 name, version and codename (written by nni)
+  /etc/inittab                    busybox init configuration
+  /usr/lib/nni/rc.sysinit         the boot script (do not edit; use rc.local)
+  /usr/share/nni/                 logos, fastfetch layouts, splash, handbook
+  /var/log/nni/                   service logs (svc log NAME)
+  /etc/apt/sources.list(.d)       package sources used by pol
+  /usr/lib/pol/                   the real apt tools (hidden on purpose)
+
+  The chicken and fastfetch
+    The logo and layout come from the nni-base package, in
+    /usr/share/nni/logos and /usr/share/nni/fastfetch. A fastfetch upgrade
+    cannot lose them any more, and "pol reinstall nni-base" brings them
+    back if you delete them. To stop "pol upgrade" from touching fastfetch
+    at all:   apt-mark hold fastfetch
+
+---------------------------------------------------------------------
+9. COMMON TWEAKS
+---------------------------------------------------------------------
+  Time zone     nni set TIMEZONE <Region>/<City>   (list: ls /usr/share/zoneinfo)
+  Man pages     pol install man-db manpages   (reinstall a package to get
+                its pages if it was installed without them)
+  Start menu    ~/.icewm/menu lists programs. The line
+                  menuprogreload Applications - 0 icewm-menu-fdo
+                keeps an "Applications" submenu in sync with installed
+                programs. Add custom entries as:  prog "Name" - command
+  Wallpaper     nni wallpaper N. It is saved in ~/.icewm/prefoverride,
+                which overrides the icewm theme.
+
+  No systemd  YnniOS has no systemd. There is no systemctl or journalctl.
+                Power:   poweroff   reboot   halt      (busybox applets)
+                Logs:    dmesg                          (kernel messages)
+                Logs:    svc log syslogd, or /var/log/messages
+                Services (daemons): use svc, see 11.2.
+                One-shot start-up commands go in /etc/rc.local.
+                Apps that need D-Bus:  pol install dbus ; svc enable dbus
+
+---------------------------------------------------------------------
+10. POST-INSTALL SETUP (after you boot the installed system)
+---------------------------------------------------------------------
+Commands need root unless stated. "vi" is always available; if you
+prefer an easier editor: pol install nano
+
+10.1 First steps
+  passwd root                        set a root password
+  nni set HOSTNAME mybox             new hostname (applies at once)
+  nni set TIMEZONE <Region>/<City>
+  pol update && pol upgrade
+  Make sure /etc/default/grub contains
+      GRUB_CMDLINE_LINUX="init=/opt/bb/init"
+  then run update-grub. Run update-grub again after every kernel upgrade.
+  UEFI only: mount the EFI partition at boot so GRUB updates work. Add
+  to /etc/fstab (find the UUID with blkid):
+      UUID=<esp-uuid>  /boot/efi  vfat  umask=0077  0  2
+  /etc/fstab is read at boot by the boot script (it runs "mount -a").
+
+10.2 Adding users
+  pol install adduser passwd         (skip if "adduser" already works)
+  adduser alice                      creates the user, home and password
+  adduser alice video                repeat for: audio  input  render
+                                     (X, sound and the GPU need these,
+                                     because there is no systemd-logind)
+  passwd alice                       change a password later
+  deluser --remove-home alice        delete a user
+
+  By default you get a root shell on tty1 and tty2 with no login. To ask
+  for a login instead:
+    1. passwd root                   do this FIRST or you lock yourself out
+    2. vi /etc/inittab and change
+           tty1::respawn:-/bin/sh
+       to
+           tty1::respawn:/bin/busybox getty -l /opt/bb/bin/login 38400 tty1
+       Leave tty2 as a root shell until you have tested tty1.
+    3. kill -HUP 1                   busybox init re-reads /etc/inittab
+    4. Older installs only, so normal users keep their own $HOME:
+       sed -i 's|^export HOME=/root|[ "$(id -u)" = 0 ] \&\& export HOME=/root|' /etc/profile
+  Locked out? At the GRUB menu press e, replace init=/opt/bb/init with
+  init=/bin/sh on the linux line, press Ctrl+X, then run
+  "mount -o remount,rw /" and fix /etc/inittab with vi.
+
+10.3 doas (run single commands as root)
+  pol install doas
+  addgroup wheel                     a group for administrators
+  adduser alice wheel
+  echo 'permit persist :wheel' > /etc/doas.conf
+  chmod 0400 /etc/doas.conf
+  doas -C /etc/doas.conf && echo config ok
+  Log in as alice, then:
+      doas pol install htop          one command as root
+      doas -s                        a root shell
+  "persist" remembers your password for a few minutes. If your doas
+  rejects the word, delete it. "permit nopass alice" skips the password
+  entirely (less safe). pol needs root, so write: doas pol install <pkg>
+
+10.4 Configuring the desktop (full edition)
+  Each user has their own settings in ~/.icewm and ~/.xinitrc. New
+  users get a copy automatically on builds that fill /etc/skel.
+  Otherwise copy it yourself:
+      cp -r /root/.icewm /root/.xinitrc /home/alice/
+      chown -R alice:alice /home/alice/.icewm /home/alice/.xinitrc
+  Running X as a normal user (there is no systemd-logind):
+      pol install xserver-xorg-legacy
+      If X still refuses to start, put   allowed_users=anybody   in
+      /etc/X11/Xwrapper.config
+  Older installs also need this so users can write the start-once marker:
+      sed -i 's|/run/ynnios-x|/tmp/.ynnios-x-$(id -u)|g' /etc/profile.d/ynnios-x.sh
+
+  Keyboard layout (desktop):  nni set XKB_LAYOUT latam    (any X layout)
+  Keyboard layout (console):  pol install kbd ; nni set KEYMAP la-latin1
+  ~/.xinitrc runs before the desktop. Keep "nni apply --x" in it (that
+  applies the layout and wallpaper), for example:
+      nni apply --x
+      xset s off -dpms &        no screen blanking
+      exec icewm-session        must be the LAST line
+  Screen resolution:     xrandr                    lists the outputs
+                         xrandr --output <name> --mode 1366x768
+                         put the command in ~/.xinitrc to keep it
+  Autostart programs:    make an executable ~/.icewm/startup script with
+                         one command per line, each ending in &. If you
+                         create this file, also start the wallpaper and
+                         tray in it, because icewm may stop starting
+                         them for you:
+                             icewmbg &
+                             icewmtray &
+  Keyboard shortcuts:   ~/.icewm/keys, one per line, for example
+                             key "Ctrl+Alt+t" xterm
+  Start menu:            ~/.icewm/menu (see section 9)
+  Theme:                 the default is Ynni. Others: ls /usr/share/icewm/themes,
+                         then in ~/.icewm/preferences set
+                             Theme="<Name>/default.theme"
+                         The wallpaper in ~/.icewm/prefoverride still
+                         wins over the theme.
+  Wallpaper:             nni wallpaper list ; nni wallpaper 2
+  All options:           pol install man-db icewm-common
+                         man icewm-preferences
+
+10.5 Connecting to the network automatically at boot
+  Easiest:      wifi connect "SSID"   then   wifi auto on
+                (this sets WIFI_AUTO=yes in /etc/nni.conf)
+  By hand, without the wifi helper:
+  There is no network manager. Save the Wi-Fi password once:
+      wpa_passphrase "SSID" "password" > /etc/wpa_supplicant.conf
+      chmod 600 /etc/wpa_supplicant.conf
+  Then put these lines in /etc/rc.local (and chmod +x /etc/rc.local):
+      rfkill unblock wifi
+      ip link set wlan0 up
+      wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant.conf
+      udhcpc -b -i wlan0             DHCP, keeps retrying in background
+  For a fixed address, replace the udhcpc line with the "ip addr add",
+  "ip route add default" and "nameserver" lines from section 4. Use
+  "ip link" to confirm your real interface name.
+
+10.6 More
+  pol install nano htop curl man-db      handy tools
+  pol install firefox-esr dbus           a browser (D-Bus: see section 9)
+  Swap file:
+      dd if=/dev/zero of=/swapfile bs=1M count=1024
+      chmod 600 /swapfile ; mkswap /swapfile ; swapon /swapfile
+      echo '/swapfile none swap sw 0 0' >> /etc/fstab
+      (the boot script runs "swapon -a", so it comes back at every boot)
+  Back up your settings: cp /etc/nni.conf /root/   (and /etc/nni/)
+
+---------------------------------------------------------------------
+11. THE NNI FAMILY TOOLS
+---------------------------------------------------------------------
+11.1 nni and /etc/nni.conf - one place for the system settings
+  nni                       summary: version, codename, settings, services
+  nni list                  every setting with its value
+  nni set TIMEZONE America/Argentina/Buenos_Aires
+  nni set HOSTNAME mybox
+  nni set KEYMAP la-latin1          console layout (needs: pol install kbd)
+  nni set CONSOLE_FONT Lat15-Terminus16   (also needs kbd)
+  nni set XKB_LAYOUT latam          desktop layout (full edition)
+  nni set WIFI_AUTO yes             connect to saved Wi-Fi at boot
+  nni set WALLPAPER 2               same as: nni wallpaper 2
+  nni set SPLASH no                 no chicken splash while booting
+  nni apply                         apply everything again
+  "nni set" changes the setting and applies it straight away. You can
+  also edit /etc/nni.conf by hand, then run "nni apply". The same
+  settings and commands work on SGnniOS.
+
+11.2 svc - services
+  A service is a program that keeps running in the background (a web
+  server, ssh, the system log). svc starts it, restarts it if it crashes
+  and saves what it prints in /var/log/nni/NAME.log.
+  svc list                  every service: enabled at boot? running?
+  svc enable sshd           start at every boot, and start it now
+  svc disable sshd          the opposite
+  svc start / stop / restart NAME
+  svc status NAME
+  svc log NAME              last lines of its log (svc log NAME -f follows)
+  Ready-made services: syslogd (on by default), klogd, crond, ntpd (keeps
+  the clock right), acpid, httpd (serves /srv/www on port 8080), sshd
+  and dbus (install openssh-server / dbus first).
+  Your own:   svc new myapp "/usr/local/bin/myapp --foreground"
+              svc enable myapp
+  The command must stay in the foreground (no "-d"/"--daemon" flags):
+  svc does the backgrounding. If it dies 5 times right after starting,
+  svc gives up and "svc list" shows FAILED.
+
+11.3 Updates for YnniOS itself
+  The nni pieces (nni, svc, wifi, pol, the boot script, logos, splash,
+  handbook) are the nni-base package; wallpapers and the theme are
+  nni-artwork. They come from the nni repository on GitHub, so
+      nni update
+  upgrades them without a new ISO (pol upgrade does it too).
+
+11.4 The boot splash
+  While booting, the chicken splash fills the screen. Turn it off with
+  nni set SPLASH no. The picture is /usr/share/nni/splash.ppm.
+
+11.5 Version and codename
+  Every nni release has a number and a chicken-breed codename; the first
+  is 1.0.0 "Silkie". YnniOS and SGnniOS share them. See: nni version
+
+11.6 Manual pages
+  Every nni command has a manual page:
+      man nni   man nni.conf   man svc   man wifi   man pol   man handbook
+  The "man" program comes with the full edition; minimal: pol install man-db.
+
+Have fun, and say hi to the chicken.

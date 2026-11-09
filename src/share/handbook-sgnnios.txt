@@ -232,9 +232,4 @@ Examples use /dev/sda.
   Every nni release has a number and a chicken-breed codename; the first
   is 1.0.0 "Silkie". See: nni version
 
-9.5 Manual pages
-  Every nni command has a manual page:
-      man nni   man nni.conf   man svc   man wifi   man spol   man handbook
-  The "man" program itself: it is preinstalled on SGnniOS.
-
 Have fun, and say hi to the chicken.

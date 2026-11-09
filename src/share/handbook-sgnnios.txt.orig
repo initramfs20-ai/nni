@@ -1,0 +1,240 @@
+=====================================================================
+  SGnniOS HANDBOOK
+  Source-Genius: a Gentoo + busybox distro, born from a keymashing
+  toy chicken ("nni"). Open this any time with:   handbook
+=====================================================================
+  (q quits, arrows scroll)
+
+---------------------------------------------------------------------
+1. WHAT YOU ARE RUNNING
+---------------------------------------------------------------------
+SGnniOS is a source-based system built on Gentoo. Packages are compiled
+on your machine by Portage, and "spol" is the friendly front end for it.
+Busybox is PID 1 (the init program); OpenRC and sysvinit are installed
+but not used to boot. There is no systemd.
+
+You are root. There is no login prompt on tty1 and tty2 (Alt+F1/F2).
+Check the system:   fastfetch     or     nni
+
+SGnniOS belongs to the nni family together with YnniOS (the Debian-based
+sibling). The family shares its own tools, found on no other distro:
+  nni        settings for the whole system, kept in /etc/nni.conf (9.1)
+  svc        starts, stops and supervises services             (9.2)
+  wifi       Wi-Fi in one command                              (section 4)
+  spol       the package manager                               (section 3)
+
+---------------------------------------------------------------------
+2. THE LIVE SYSTEM
+---------------------------------------------------------------------
+The OS is a read-only squashfs on the ISO with a RAM overlay on top.
+Changes are lost on reboot unless you install it to a disk (section 6).
+Compiling big packages in RAM needs lots of memory; installing to a
+disk first is much more comfortable.
+
+Boot menu entries:
+  SGnniOS                       normal boot
+  SGnniOS (safe graphics)       adds nomodeset
+  SGnniOS (drop to initramfs shell)   stops early, for debugging
+
+---------------------------------------------------------------------
+3. SPOL - SOURCED PORTAGE-ORIENTED LINKER
+---------------------------------------------------------------------
+(YnniOS has "pol", the Package Optimized Layer over apt. spol is the
+Gentoo/Portage counterpart.)
+
+  spol sync                fetch the Portage tree (do this first!)
+  spol install <pkg>       build and install from source
+  spol install -b <pkg>    use a cached binary package if one exists
+  spol remove <pkg>        uninstall
+  spol autoremove          remove packages nothing needs
+  spol upgrade             update the whole system
+  spol search <term>       search the tree
+  spol show <pkg>          what would be built, with USE flags
+  spol use <pkg> <flags>   set USE flags (saved in /etc/portage/package.use/spol)
+  spol jobs <N>            parallel compile jobs (try 2 for huge builds)
+  spol list / files / owns   inspect installed packages
+  spol clean               delete downloaded sources
+  spol help                full list
+
+Package names are Gentoo-style: category/name, e.g. net-wireless/iw.
+Search first:   spol search nano        spol install app-editors/nano
+Portage keeps binary packages of everything it builds, so rebuilding or
+reinstalling the same package later is fast with  -b.
+
+The ISO ships without the Portage tree to stay small, so run
+"spol sync" (needs network) before the first install.
+
+---------------------------------------------------------------------
+4. NETWORKING
+---------------------------------------------------------------------
+Wired:
+  ip link ; ip link set eth0 up ; udhcpc -i eth0
+
+Wi-Fi: use the wifi helper. It prints every command it runs.
+  wifi scan
+  wifi connect "SSID"                (asks for the password)
+  wifi status
+  wifi fallback 192.168.1.50/24 192.168.1.1 1.1.1.1
+        try DHCP; if it fails use this fixed address (example numbers,
+        use your own network's)
+  wifi static ... / wifi dhcp        always fixed / DHCP only
+  wifi auto on                       connect by itself at every boot
+By hand, the same steps are:
+  rfkill unblock wifi ; ip link set wlan0 up
+  wpa_passphrase "SSID" "password" > /tmp/wpa.conf
+  wpa_supplicant -B -i wlan0 -c /tmp/wpa.conf
+  udhcpc -i wlan0
+  (static: ip addr add 192.168.1.50/24 dev wlan0 ;
+           ip route add default via 192.168.1.1 dev wlan0 ;
+           echo "nameserver 1.1.1.1" > /etc/resolv.conf)
+
+---------------------------------------------------------------------
+5. COMPILING ON A SMALL MACHINE
+---------------------------------------------------------------------
+  * More jobs is not always faster. Each job of a big C++ build can use
+    1-2 GB of RAM. If a build dies with "out of memory", lower the jobs:
+    spol jobs 2
+  * Add swap on the installed system before big builds (see 8).
+  * The ISO is built for generic x86-64 so it runs on old and new CPUs.
+    Packages you compile yourself use the flags in
+    /etc/portage/make.conf (COMMON_FLAGS). On a machine that is only
+    yours you can change -march=x86-64 to -march=native for speed, but
+    those binaries then only run on CPUs at least as new as that one.
+
+---------------------------------------------------------------------
+6. INSTALLING SGNNIOS TO A DISK (hard on purpose)
+---------------------------------------------------------------------
+There is no installer. The image has no mkfs.ext4, no GRUB and only
+busybox fdisk. THESE STEPS ERASE THE TARGET DISK. Check "fdisk -l" and
+be sure which device is the internal disk and which is your USB stick.
+Examples use /dev/sda.
+
+6.0 Network first:    wifi connect "SSID"     (or: udhcpc -i eth0)
+    Then:             spol sync
+    Get the tools:    spol reinstall sys-fs/e2fsprogs   (puts mkfs back)
+                      spol install sys-boot/grub        (a long compile)
+    UEFI also:        spol install sys-fs/dosfstools   (mkfs.fat)
+    UEFI GPT:         spol install sys-apps/gptfdisk   (sgdisk)
+
+6.1 Legacy BIOS or UEFI?   ls /sys/firmware/efi   exists -> UEFI
+
+6.2 Legacy BIOS
+      fdisk /dev/sda               o, n, p, 1, Enter, Enter, a, w
+      mkfs.ext4 /dev/sda1
+      mkdir -p /mnt/t && mount /dev/sda1 /mnt/t
+      cp -ax / /mnt/t/             (kernel and initramfs are inside)
+      mkdir -p /mnt/t/proc /mnt/t/sys /mnt/t/dev /mnt/t/run /mnt/t/tmp
+      for d in dev proc sys run; do mount --rbind /$d /mnt/t/$d; done
+      chroot /mnt/t /bin/bash
+        grub-install /dev/sda
+        (write /boot/grub/grub.cfg - see 6.4)
+        exit
+
+6.3 UEFI (Secure Boot must be OFF)
+      sgdisk -Z /dev/sda
+      sgdisk -n1:0:+512M -t1:ef00 -n2:0:0 -t2:8300 /dev/sda
+      mkfs.fat -F 32 /dev/sda1 ; mkfs.ext4 /dev/sda2
+      mkdir -p /mnt/t && mount /dev/sda2 /mnt/t
+      cp -ax / /mnt/t/
+      mkdir -p /mnt/t/proc /mnt/t/sys /mnt/t/dev /mnt/t/run /mnt/t/tmp /mnt/t/boot/efi
+      mount /dev/sda1 /mnt/t/boot/efi
+      for d in dev proc sys run; do mount --rbind /$d /mnt/t/$d; done
+      chroot /mnt/t /bin/bash
+        grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable
+        (write /boot/grub/grub.cfg - see 6.4, with the root partition sda2)
+        exit
+
+6.4 /boot/grub/grub.cfg   (the kernel files are named after their version:
+    run  ls /boot  and use the real names)
+      insmod part_gpt
+      insmod ext2
+      search --no-floppy --file --set=root /boot/vmlinuz-<version>
+      set timeout=3
+      menuentry "SGnniOS" {
+        linux  /boot/vmlinuz-<version> root=UUID=<root-uuid> rw init=/opt/bb/init
+        initrd /boot/initramfs-<version>.img
+      }
+    Find the UUID with:  blkid /dev/sda1   (or sda2 for UEFI)
+    Because the names carry the version, grub-mkconfig also works once
+    GRUB is installed, if you set GRUB_CMDLINE_LINUX="init=/opt/bb/init"
+    in /etc/default/grub.
+
+6.5 Finish:   exit the chroot, umount -R /mnt/t, reboot, remove the USB.
+
+---------------------------------------------------------------------
+7. THE BOOT SYSTEM
+---------------------------------------------------------------------
+  /etc/inittab                     busybox init configuration
+  /usr/lib/nni/rc.sysinit          the boot script (do not edit it)
+  /etc/rc.local                    your own boot commands (chmod +x it)
+  /sbin/init                       a link to busybox (so busybox boots
+                                   even if init= is missing)
+  Services (daemons): use svc, see 9.2.
+  Power:   poweroff   reboot   halt       (busybox applets)
+  There is no systemctl, journalctl or OpenRC runlevel at boot.
+  Kernel messages:  dmesg
+
+---------------------------------------------------------------------
+8. COMMON TWEAKS
+---------------------------------------------------------------------
+  Time zone     nni set TIMEZONE <Region>/<City>   (list: ls /usr/share/zoneinfo)
+  Swap file     dd if=/dev/zero of=/swapfile bs=1M count=4096
+                chmod 600 /swapfile ; mkswap /swapfile ; swapon /swapfile
+                (mkswap is a busybox applet here)
+  fastfetch     the buff chicken comes from nni-base (/usr/share/nni);
+                "spol reinstall app-misc/nni-base" brings it back
+  Wi-Fi at boot wifi connect "SSID" ; wifi auto on
+  Boot logo     SGnniOS compiles its kernel with chickens instead of
+                penguins (one per CPU core). The kernel waits to take over
+                the screen until something is printed, so "quiet" hides
+                them: keep  fbcon=nodefer  on the linux line in
+                /boot/grub/grub.cfg (or GRUB_CMDLINE_LINUX in
+                /etc/default/grub, then: grub-mkconfig -o /boot/grub/grub.cfg)
+                The chicken goes in through /etc/portage/env/sys-kernel/
+                gentoo-kernel, so every kernel you compile keeps it.
+                Prebuilt kernels (gentoo-kernel-bin) show tux instead.
+
+---------------------------------------------------------------------
+9. THE NNI FAMILY TOOLS
+---------------------------------------------------------------------
+9.1 nni and /etc/nni.conf - one place for the system settings
+  nni                       summary: version, codename, settings, services
+  nni list                  every setting with its value
+  nni set TIMEZONE America/Argentina/Buenos_Aires
+  nni set HOSTNAME mybox
+  nni set KEYMAP la-latin1          console layout (needs: spol install sys-apps/kbd)
+  nni set WIFI_AUTO yes             connect to saved Wi-Fi at boot
+  nni set SPLASH no                 no chicken splash while booting
+  nni apply                         apply everything again
+  Same settings and commands as on YnniOS.
+
+9.2 svc - services
+  svc list                  every service: enabled at boot? running?
+  svc enable NAME           start at every boot, and start it now
+  svc disable NAME          the opposite
+  svc start / stop / restart / status NAME
+  svc log NAME              what the service printed (-f follows it)
+  Ready-made: syslogd (on by default), klogd, crond, ntpd, acpid, httpd,
+  sshd (spol install net-misc/openssh) and dbus (spol install sys-apps/dbus).
+  Your own:   svc new myapp "/usr/local/bin/myapp --foreground"
+  The command must stay in the foreground; svc restarts it if it dies.
+
+9.3 Updates for SGnniOS itself
+  The nni pieces (nni, svc, wifi, spol, boot script, logos, splash,
+  kernel logo, handbook) are the app-misc/nni-base package from the nni
+  overlay on GitHub.
+      nni update
+  The first time, it switches the overlay this ISO shipped with to the
+  GitHub one (git is preinstalled), then compiles the new nni-base.
+  After that, "spol sync" keeps it current along with Gentoo.
+
+9.4 Version and codename
+  Every nni release has a number and a chicken-breed codename; the first
+  is 1.0.0 "Silkie". See: nni version
+
+9.5 Manual pages
+  Every nni command has a manual page:
+      man nni   man nni.conf   man svc   man wifi   man spol   man handbook
+  The "man" program itself: it is preinstalled on SGnniOS.
+
+Have fun, and say hi to the chicken.

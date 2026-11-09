@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nni: YnniOS and SGnniOS</title>
+<style>
+  :root { --bg:#160409; --panel:#24080f; --text:#f3e8ea; --muted:#c3a7ad; --amber:#f2a01e; --yolk:#ffd640; --crimson:#9e122e; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 48px 16px 64px; }
+  header { display:flex; gap:28px; align-items:center; flex-wrap:wrap; }
+  header img { width: 150px; height:auto; }
+  header > div { flex: 1 1 300px; }
+  h1 { margin:0; font-size: 2.6rem; letter-spacing:-0.02em; color:var(--yolk); }
+  .tag { color:var(--muted); margin:4px 0 0; }
+  h2 { color:var(--amber); font-size:1.25rem; margin:44px 0 12px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:14px; }
+  .card { background:var(--panel); border:1px solid #3d1220; border-radius:10px; padding:16px 18px; }
+  .card h3 { margin:0 0 6px; color:var(--yolk); font-size:1.05rem; }
+  .card p { margin:0; color:var(--muted); }
+  pre { background:#0d0205; border:1px solid #3d1220; border-radius:8px; padding:14px; overflow-x:auto; font-size:.9rem; }
+  code { font-family: ui-monospace, "DejaVu Sans Mono", monospace; }
+  a { color:var(--amber); }
+  footer { margin-top:56px; color:var(--muted); font-size:.9rem; }
+  .dl { display:flex; flex-direction:column; gap:12px; }
+  .iso { background:var(--panel); border:1px solid #3d1220; border-radius:10px; padding:16px 18px;
+         display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; justify-content:space-between; }
+  .iso h3 { margin:0; color:var(--yolk); font-size:1.1rem; }
+  .iso p { margin:2px 0 0; color:var(--muted); }
+  .iso .meta { font-size:.85rem; color:var(--muted); font-family: ui-monospace, "DejaVu Sans Mono", monospace; overflow-wrap:anywhere; }
+  .iso .info { flex: 1 1 320px; min-width:0; }
+  .btns { display:flex; flex-wrap:wrap; gap:8px; }
+  a.btn { display:inline-block; background:var(--amber); color:#1a060c; font-weight:600; text-decoration:none;
+          padding:9px 16px; border-radius:8px; white-space:nowrap; }
+  a.btn:hover { background:var(--yolk); }
+  a.btn.part { background:#3d1220; color:var(--yolk); }
+  .note { color:var(--muted); font-size:.92rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="chick.png" alt="the nni chick">
+    <div>
+      <h1>nni</h1>
+      <p class="tag">YnniOS and SGnniOS: two busybox distros named after a toy chicken that keymashed a keyboard.</p>
+    </div>
+  </header>
+
+  <h2 id="download">Download</h2>
+  <div id="isos" class="dl"><p class="note">Looking for the latest ISOs...</p></div>
+  <p class="note">Write an ISO to a USB stick with <code>dd</code> or put it on a Ventoy stick. Secure Boot must be off.
+  Installing is hard on purpose: the <code>handbook</code> command on the live system explains how.</p>
+  <details class="note">
+    <summary>Check that the download is genuine</summary>
+<pre><code id="verify">wget BASEsums BASEsig KEY
+gpg --no-default-keyring --keyring ./nni-archive-keyring.gpg --verify SHA256SUMS.asc SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS</code></pre>
+    <p>The first command shows "Good signature from nni apt repository"; the second prints OK next to your ISO.</p>
+  </details>
+
+  <h2>The family</h2>
+  <div class="grid">
+    <div class="card"><h3>YnniOS</h3><p>Debian underneath, busybox as init, no systemd. Minimal for servers and homelabs, full with the icewm desktop. Packages through <code>pol</code>.</p></div>
+    <div class="card"><h3>SGnniOS</h3><p>Source-Genius: Gentoo underneath, compiled on your machine through <code>spol</code>. Chickens instead of penguins at boot.</p></div>
+    <div class="card"><h3>Shared core</h3><p><code>nni</code> settings in one file, the <code>svc</code> service manager, one-command <code>wifi</code>, the boot splash and the handbook.</p></div>
+  </div>
+
+  <h2>Add the YnniOS package repository</h2>
+  <p>New YnniOS ISOs already have it. On an older install, run as root:</p>
+<pre><code id="apt">pol update &amp;&amp; pol install ca-certificates
+wget -O /usr/share/keyrings/nni-archive-keyring.gpg BASE/apt/nni-archive-keyring.gpg
+wget -O /etc/apt/sources.list.d/nni.sources BASE/apt/nni.sources
+pol update &amp;&amp; pol install nni-base</code></pre>
+
+  <h2>Add the SGnniOS overlay</h2>
+<pre><code id="overlay">spol install dev-vcs/git
+printf '[nni]\nlocation = /var/db/repos/nni\nsync-type = git\nsync-uri = REPO.git\nsync-depth = 1\n' \
+  &gt; /etc/portage/repos.conf/nni.conf
+emerge --sync nni &amp;&amp; spol install app-misc/nni-base</code></pre>
+
+  <footer>Source, releases and the full guide: <a id="repo" href="#">GitHub</a>. MIT licensed.</footer>
+</main>
+<script>
+  // fill in this site's own addresses so the commands can be pasted as they are
+  (function () {
+    var host = location.hostname, parts = location.pathname.split('/').filter(Boolean);
+    var base = location.origin + (parts.length ? '/' + parts[0] : '');
+    var owner = host.endsWith('.github.io') ? host.replace('.github.io', '') : 'YOUR-GITHUB-USER';
+    var repo = 'https://github.com/' + owner + '/' + (parts[0] || 'nni');
+    var a = document.getElementById('apt'), o = document.getElementById('overlay');
+    a.textContent = a.textContent.split('BASE').join(base);
+    o.textContent = o.textContent.split('REPO').join(repo);
+    document.getElementById('repo').href = repo;
+
+    // the download list comes from isos.json, written by tools/release.sh isos
+    var box = document.getElementById('isos');
+    function human(n) { return n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : Math.round(n / 1e6) + ' MB'; }
+    function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+    fetch('isos.json', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error(r.status); return r.json();
+    }).then(function (d) {
+      box.textContent = '';
+      var head = el('p', 'note', 'Version ' + d.version + ' "' + d.codename + '" - ');
+      var rel = el('a', '', 'release notes and all files'); rel.href = d.release; head.appendChild(rel);
+      box.appendChild(head);
+      d.isos.forEach(function (iso) {
+        var card = el('div', 'iso'), info = el('div', 'info'), btns = el('div', 'btns');
+        info.appendChild(el('h3', '', iso.title));
+        info.appendChild(el('p', '', iso.about));
+        info.appendChild(el('div', 'meta', iso.file + ' - ' + human(iso.size) + ' - sha256 ' + iso.sha256.slice(0, 16) + '...'));
+        if (iso.parts.length) {
+          iso.parts.forEach(function (p, i) {
+            var a = el('a', 'btn part', 'Part ' + (i + 1) + ' of ' + iso.parts.length); a.href = d.base + p; btns.appendChild(a);
+          });
+          info.appendChild(el('p', 'note', 'Too big for one GitHub file, so it comes in parts. Join them: cat ' + iso.file + '.part* > ' + iso.file));
+        } else {
+          var a = el('a', 'btn', 'Download'); a.href = d.base + iso.file; btns.appendChild(a);
+        }
+        card.appendChild(info); card.appendChild(btns); box.appendChild(card);
+      });
+      var v = document.getElementById('verify');
+      v.textContent = v.textContent.split('BASEsums').join(d.base + d.sums)
+                                   .split('BASEsig').join(d.base + d.signature)
+                                   .split('KEY').join(base + '/apt/nni-archive-keyring.gpg');
+    }).catch(function () {
+      box.textContent = '';
+      var p = el('p', 'note', 'No ISOs have been published yet. Builders and sources: ');
+      var a = el('a', '', 'GitHub'); a.href = repo; p.appendChild(a); box.appendChild(p);
+    });
+  })();
+</script>
+</body>
+</html>
