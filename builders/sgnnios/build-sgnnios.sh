@@ -187,6 +187,9 @@ cat > "$ISO/boot/grub/grub.cfg" <<EOF
 insmod all_video
 if loadfont unicode ; then
   set gfxmode=auto
+  # hand GRUB's graphics mode to the kernel: the screen then works from the very
+  # first moment, so the boot logo and the splash can be drawn (BIOS and UEFI)
+  set gfxpayload=keep
   insmod gfxterm
   insmod png
   terminal_output gfxterm
