@@ -1,14 +1,14 @@
 Package: nni-artwork
-Version: 1.0.1
+Version: 1.0.2
 Architecture: all
 Maintainer: nni project <nni@invalid>
 Installed-Size: 4452
-Depends: nni-base (>= 1.0.1)
-Filename: pool/nni-artwork_1.0.1_all.deb
-Size: 4503632
-MD5sum: 1b9fe7e2950eca23a679535f0139e50a
-SHA1: e64869ce5cb9345c16527a24c7f9cca5c379a646
-SHA256: ec7e53576edd2cc85dd59fff217cd83617d4ba78f7bd5e4ffd0ce5372cbcb9fc
+Depends: nni-base (>= 1.0.2)
+Filename: pool/nni-artwork_1.0.2_all.deb
+Size: 4503636
+MD5sum: 474c55b61b0404250cdcca32f85342fa
+SHA1: 86305ef8843a614bd2c0b072cad243b0e53f035d
+SHA256: 1e83f61381bfaea10793b35c83e6a062804278b244efe67156eb3511b5b2e357
 Section: x11
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
@@ -17,17 +17,17 @@ Description: wallpapers and desktop theme for the nni family
  background. Pick a wallpaper with: nni wallpaper list
 
 Package: nni-base
-Version: 1.0.1
+Version: 1.0.2
 Architecture: amd64
 Maintainer: nni project <nni@invalid>
 Installed-Size: 1532
 Depends: busybox-static | busybox, fastfetch
 Recommends: wpasupplicant, iw
-Filename: pool/nni-base_1.0.1_amd64.deb
-Size: 396244
-MD5sum: f1a4c007e57d21bf2c407e82ab9aab16
-SHA1: ce2a40b51d00dc5398b28681b66705644f349463
-SHA256: d0188c5106aeab58fc0301c0a84db0c809ee2c363d39d4d48df9733e3fd30d16
+Filename: pool/nni-base_1.0.2_amd64.deb
+Size: 395944
+MD5sum: ead9943f666f484ab95950ff52bb1d37
+SHA1: 8b2b6afc343c628bdd97943db6aaaa8b52a412e5
+SHA256: a0a3d7171af7b08a0bc2eeea996f8cca06988fdc51c8a8b5aa8153069ef2de69
 Section: admin
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
