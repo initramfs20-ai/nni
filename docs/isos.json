@@ -1,0 +1,13 @@
+{
+  "version": "1.0.2",
+  "codename": "Silkie",
+  "release": "https://github.com/initramfs20-ai/nni/releases/tag/v1.0.2",
+  "base": "https://github.com/initramfs20-ai/nni/releases/download/v1.0.2/",
+  "sums": "SHA256SUMS",
+  "signature": "SHA256SUMS.asc",
+  "isos": [
+    {"file": "ynnios-1.0.2-minimal-amd64.iso", "title": "YnniOS minimal", "about": "Console only. For servers, homelabs, routers and anything with a network cable.", "size": 209700864, "sha256": "d2a0f40aa6e0c8614cdbe4c7711bbc663a5c594f20dd1a0099e0f38d3c04621e", "parts": []},
+    {"file": "ynnios-1.0.2-full-amd64.iso", "title": "YnniOS full", "about": "The icewm desktop with drivers and Wi-Fi firmware. The everyday edition.", "size": 454809600, "sha256": "0cdc29fba2b535044dd5d504c2c63b838322a76cdcba43ed8df35b3f1cbd2b3d", "parts": []},
+    {"file": "sgnnios-1.0.2-amd64.iso", "title": "SGnniOS", "about": "Source-Genius: Gentoo underneath, compiled on your machine, chickens at boot.", "size": 1976872960, "sha256": "92e1efb97b1a821806813d6540e49df538772a69043e2a1a12d331830e638181", "parts": []}
+  ]
+}
