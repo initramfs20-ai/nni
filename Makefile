@@ -3,7 +3,7 @@
 #   make                                  build nni-splash
 #   make install DESTDIR=... DISTRO=ynnios    nni-base files for YnniOS
 #   make install DESTDIR=... DISTRO=sgnnios   nni-base files for SGnniOS
-#   make install-artwork DESTDIR=...      wallpapers, icewm theme, GRUB picture
+#   make install-artwork DESTDIR=...      wallpapers, desktop menu entries, icewm theme, GRUB picture
 #   make check                            syntax-check every script
 
 VERSION  := $(shell cat VERSION)
@@ -50,7 +50,9 @@ install: all
 
 install-artwork:
 	install -d $(DESTDIR)$(PREFIX)/share/backgrounds/nni $(DESTDIR)$(PREFIX)/share/icewm/themes/Ynni $(SHARE)/grub
+	install -d $(DESTDIR)$(PREFIX)/share/applications
 	install -m644 artwork/wallpapers/*.png $(DESTDIR)$(PREFIX)/share/backgrounds/nni/
+	install -m644 src/share/applications/*.desktop $(DESTDIR)$(PREFIX)/share/applications/
 	install -m644 artwork/icewm/Ynni/default.theme $(DESTDIR)$(PREFIX)/share/icewm/themes/Ynni/
 	install -m644 artwork/generated/grub-background.png $(SHARE)/grub/background.png
 

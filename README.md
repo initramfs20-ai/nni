@@ -5,7 +5,7 @@ The nni family started when a toy chicken keymashed a keyboard and typed "Ynni".
 | | YnniOS | SGnniOS |
 |---|---|---|
 | Base | Debian (debootstrap) | Gentoo (stage3, compiled from source) |
-| Editions | minimal (servers, homelabs, anything on a cable), full (icewm desktop, drivers) | one, source-based |
+| Editions | minimal (servers, homelabs, anything on a cable), full (NiWM desktop, drivers) | one, source-based |
 | Package tool | `pol`, the Package Optimized Layer over apt | `spol`, the Sourced Portage-Oriented Linker |
 | fastfetch logo | the chicken | the buff chicken shouting "SPOL!!" |
 | Boot logo | chicken splash | chicken splash and chickens instead of tux in the kernel |
@@ -16,12 +16,13 @@ and share the **nni core**:
 - **`nni`**: every system setting in one file, `/etc/nni.conf` (`nni set TIMEZONE ...`).
 - **`svc`**: a small service manager that supervises daemons and restarts them if they crash.
 - **`wifi`**: Wi-Fi in one command.
-- The busybox boot script, the chicken splash, the handbook, and the `Ynni` icewm theme.
+- The busybox boot script, the chicken splash, the handbook, and NiWM, the desktop of YnniOS full.
 - Releases with a shared version and a chicken-breed codename. 1.0.0 is "Silkie".
 
 ## NiWM
 
-The family's window manager, in [`niwm/`](niwm/): tiling and floating windows on
+The family's window manager and the desktop of YnniOS full, in [`niwm/`](niwm/):
+tiling and floating windows on
 nine tags per monitor, in the spirit of awesome but without Lua or a widget toolkit.
 It uses well under 1 MB of memory, and comes with a drop-down scratchpad, window
 swallowing, multiple monitors, and **nibar**, a vertical taskbar with an applications
@@ -49,6 +50,7 @@ src/man/             manual pages
 src/splash/          nni-splash, the C program that draws the boot splash
 niwm/                NiWM, the window manager, and nibar (its own Makefile and man pages)
 artwork/             wallpapers, icewm theme, generated splash/kernel-logo/GRUB pictures
+src/share/applications/  the nni entries in the desktop's apps menu
 packaging/debian/    builds the nni-base, nni-artwork and niwm .deb packages
 packaging/gentoo/    the ebuild templates
 app-misc/, x11-wm/, profiles/, metadata/   the Gentoo overlay (this repo is the overlay)

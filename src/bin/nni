@@ -163,13 +163,22 @@ wallpaper_apply() {
   pick=$(wall_pick) || { [ "$1" = quiet ] || echo "nni: unknown wallpaper '$WALLPAPER'" >&2; return 0; }
   home=${HOME:-/root}
   [ -n "$R" ] && home=$R/root
-  pref="$home/.icewm/prefoverride"
-  mkdir -p "$home/.icewm" 2>/dev/null || return 0
-  touch "$pref"
-  grep -v '^DesktopBackground' "$pref" > "$pref.tmp" 2>/dev/null
-  { echo "DesktopBackgroundImage=\"${pick#$R}\""; echo "DesktopBackgroundScaled=1"; } >> "$pref.tmp"
-  mv "$pref.tmp" "$pref"
-  [ -z "$R" ] && [ -n "$DISPLAY" ] && icewmbg -r >/dev/null 2>&1
+  # icewm (the desktop before NiWM) keeps its own copy of the choice
+  if [ -d "$home/.icewm" ]; then
+    pref="$home/.icewm/prefoverride"
+    touch "$pref" 2>/dev/null &&
+    { grep -v '^DesktopBackground' "$pref" > "$pref.tmp" 2>/dev/null
+      { echo "DesktopBackgroundImage=\"${pick#$R}\""; echo "DesktopBackgroundScaled=1"; } >> "$pref.tmp"
+      mv "$pref.tmp" "$pref"; }
+  fi
+  # paint it now, when there is a desktop to paint on
+  if [ -z "$R" ] && [ -n "$DISPLAY" ]; then
+    if command -v xwallpaper >/dev/null 2>&1; then xwallpaper --zoom "$pick" >/dev/null 2>&1
+    elif command -v feh >/dev/null 2>&1; then feh --no-fehbg --bg-fill "$pick" >/dev/null 2>&1
+    elif command -v hsetroot >/dev/null 2>&1; then hsetroot -fill "$pick" >/dev/null 2>&1
+    fi
+    command -v icewmbg >/dev/null 2>&1 && pidof icewm >/dev/null 2>&1 && icewmbg -r >/dev/null 2>&1
+  fi
   [ "$1" = quiet ] || echo "wallpaper: $(basename "$pick")"
   return 0
 }
@@ -296,7 +305,7 @@ nni - settings and info for YnniOS / SGnniOS
   nni get KEY               one setting
   nni set KEY VALUE         change a setting and apply it now
   nni apply                 apply every setting again
-  nni wallpaper [list|N]    show or pick the desktop wallpaper
+  nni wallpaper [list|N|next]  show or pick the desktop wallpaper
   nni update                upgrade the nni packages themselves
   nni version               version and codename
 
@@ -339,6 +348,13 @@ case "$cmd" in
   wallpaper)   load
                case "${1:-list}" in
                  list|-l|--list) wall_list ;;
+                 next) # the one after the current, round and round
+                    d=$(wall_dir) || { wall_list; exit 1; }
+                    cur=$(wall_pick) || cur=; n=0; i=0
+                    for f in "$d"/*.png; do n=$((n+1)); [ "$f" = "$cur" ] && i=$n; done
+                    WALLPAPER=$((i % n + 1))
+                    [ -w "$CONF" ] || [ -n "$R" ] && write_conf 2>/dev/null
+                    wallpaper_apply ;;
                  *) WALLPAPER=$1; wall_pick >/dev/null || { echo "nni: unknown wallpaper '$1'" >&2; wall_list; exit 1; }
                     [ -w "$CONF" ] || [ -n "$R" ] && write_conf 2>/dev/null
                     wallpaper_apply ;;
