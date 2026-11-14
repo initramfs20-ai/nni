@@ -5,20 +5,20 @@ Origin: nni
 Label: nni
 Suite: stable
 Codename: silkie
-Version: 1.3.1
-Date: Sat, 14 Nov 2026 16:44:08 +0000
+Version: 1.4.0
+Date: Sat, 14 Nov 2026 19:47:20 +0000
 Architectures: amd64 all
 Description: nni family packages for YnniOS
 MD5Sum:
- a18e5d9a1c4f8981428b43ec17d663e2 2584 Packages
- f3fd8159d606975eec3b27b4909b434f 1298 Packages.gz
+ b0e61a255a0a4850beda3d729c530dcf 2584 Packages
+ b771b5e37f9c4411cd127ddd85bea6db 1299 Packages.gz
 SHA256:
- 207162d090083bf095e5cba7620d75fbb8503b05d39a9d26af4e83d256396934 2584 Packages
- dad250b40ee8adc313b0bf5058101d0d7363df8e3a8a0304fcede50ad2dad27e 1298 Packages.gz
+ 700ffeddd950dbae47592dcd6c1372b199661ef86117f4cfc7b832c650010663 2584 Packages
+ ec13e632b81b00ad23589de42e6f0f1920ebbdb048b3864da25abeda46c8729b 1299 Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iHUEARYKAB0WIQTlxJq90Q61SSYpDxHKo8R755b5wgUCaviP2AAKCRDKo8R755b5
-ws1KAP4ptke9ywd9LlnuQd4W2fcX0SitBFBxxjm+GKPMsmXQnwD7BelDP0dcMVKo
-laGbf1PRkiXxa/qVfqZP/BHt7xN0jw0=
-=8bzh
+iHUEARYKAB0WIQTlxJq90Q61SSYpDxHKo8R755b5wgUCavi6yAAKCRDKo8R755b5
+wimbAPwKm3DaXwqqRomdwhRcOEN9mE0XRw+bP1QEId/GZePxMwEA0S3jql0/9MkE
+bML0LnfsnJt0J4SnKWKEx90MYHuBiwk=
+=pxyr
 -----END PGP SIGNATURE-----
