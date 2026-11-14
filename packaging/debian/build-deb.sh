@@ -2,10 +2,13 @@
 # Build the YnniOS packages from this repo:
 #   nni-base_VERSION_amd64.deb     the shared core (scripts, boot, splash, logos)
 #   nni-artwork_VERSION_all.deb    wallpapers, icewm theme, GRUB picture (full edition)
+#   niwm_NIWMVERSION_amd64.deb     the NiWM window manager and nibar (from niwm/)
 #
 #   sh packaging/debian/build-deb.sh [OUTDIR] [REPO_URL]
 #
-# Needs: make, a C compiler, dpkg-deb (all on Debian/Ubuntu/Pop!_OS: build-essential).
+# Needs: make, a C compiler, dpkg-deb, dpkg-shlibdeps, pkg-config and the xcb
+# headers: sudo apt install build-essential dpkg-dev pkg-config \
+#              libxcb1-dev libxcb-randr0-dev libxcb-res0-dev
 set -eu
 TOP=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${1:-$TOP/dist}
@@ -17,9 +20,13 @@ OUT=$(cd "$OUT" && pwd)
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 
-for t in make dpkg-deb; do
-  command -v "$t" >/dev/null || { echo "missing $t (sudo apt install build-essential dpkg-dev)"; exit 1; }
+for t in make dpkg-deb dpkg-shlibdeps pkg-config; do
+  command -v "$t" >/dev/null || { echo "missing $t (sudo apt install build-essential dpkg-dev pkg-config)"; exit 1; }
 done
+# NiWM is built with multi-monitor and swallowing support, so the package
+# always means the same thing no matter which PC built it
+pkg-config --exists xcb xcb-randr xcb-res ||
+  { echo "missing xcb headers (sudo apt install libxcb1-dev libxcb-randr0-dev libxcb-res0-dev)"; exit 1; }
 
 # ------------------------------------------------------------------ nni-base
 B=$STAGE/nni-base
@@ -105,6 +112,49 @@ EOF
 ( cd "$A" && find . -path ./DEBIAN -prune -o -type f -print | sed 's|^\./||' | sort | xargs md5sum ) > "$A/DEBIAN/md5sums"
 dpkg-deb --root-owner-group -Zxz --build "$A" "$OUT/nni-artwork_${VERSION}_all.deb" >/dev/null
 
+# ------------------------------------------------------------------ niwm
+# NiWM keeps its own version number, separate from the nni release.
+NIWM_VERSION=$(sed -n 's/^#define NIWM_VERSION "\(.*\)"/\1/p' "$TOP/niwm/core/niwm.h")
+[ -n "$NIWM_VERSION" ] || { echo "can't read NIWM_VERSION from niwm/core/niwm.h"; exit 1; }
+N=$STAGE/niwm
+make -C "$TOP/niwm" clean >/dev/null
+make -C "$TOP/niwm" install-strip DESTDIR="$N" PREFIX=/usr SYSCONFDIR=/etc \
+     RANDR=yes XRES=yes CFLAGS="-O2 -pipe" >/dev/null
+make -C "$TOP/niwm" clean >/dev/null
+gzip -9n "$N"/usr/share/man/man1/*
+mkdir -p "$N/DEBIAN" "$STAGE/shlibs/debian"
+# let dpkg work out which libraries (and versions) the programs need
+printf 'Source: niwm\n\nPackage: niwm\nArchitecture: any\n' > "$STAGE/shlibs/debian/control"
+deps=$(cd "$STAGE/shlibs" && dpkg-shlibdeps -O \
+       "$N/usr/bin/niwm-x11" "$N/usr/bin/nibar" "$N/usr/bin/niwmctl" 2>/dev/null |
+       sed -n 's/^shlibs:Depends=//p')
+[ -n "$deps" ] || { echo "dpkg-shlibdeps found no libraries for niwm"; exit 1; }
+size=$(du -sk "$N" | cut -f1)
+cat > "$N/DEBIAN/control" <<EOF
+Package: niwm
+Version: $NIWM_VERSION
+Architecture: $(dpkg --print-architecture)
+Maintainer: $MAINTAINER
+Installed-Size: $size
+Depends: $deps
+Recommends: xfonts-base, x11-xserver-utils
+Suggests: x-terminal-emulator
+Provides: x-window-manager
+Section: x11
+Priority: optional
+Homepage: $REPO_URL
+Description: lightweight tiling and floating window manager, with nibar
+ NiWM tiles or floats windows on nine tags per monitor, in the spirit of
+ awesome but without Lua or a widget toolkit: it uses well under 1 MB of
+ memory. It comes with a drop-down scratchpad, window swallowing, multiple
+ monitors, and nibar, a vertical taskbar with an applications menu and a
+ system tray. Configure it in ~/.config/niwm/niwmrc; see man niwm.
+EOF
+( cd "$N" && find etc -type f | sed 's|^|/|' | sort ) > "$N/DEBIAN/conffiles"
+( cd "$N" && find . -path ./DEBIAN -prune -o -type f -print | sed 's|^\./||' | sort | xargs md5sum ) > "$N/DEBIAN/md5sums"
+dpkg-deb --root-owner-group -Zxz --build "$N" "$OUT/niwm_${NIWM_VERSION}_$(dpkg --print-architecture).deb" >/dev/null
+
 make -C "$TOP" clean >/dev/null
 echo "built: $OUT/nni-base_${VERSION}_amd64.deb"
 echo "built: $OUT/nni-artwork_${VERSION}_all.deb"
+echo "built: $OUT/niwm_${NIWM_VERSION}_$(dpkg --print-architecture).deb"

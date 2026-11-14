@@ -12,8 +12,11 @@ inside the `nni` folder.
 ## 1. Install the tools
 
 ```sh
-sudo apt install git gh build-essential dpkg-dev gnupg
+sudo apt install git gh build-essential dpkg-dev gnupg pkg-config \
+                 libxcb1-dev libxcb-randr0-dev libxcb-res0-dev
 ```
+
+The `libxcb` packages are for building NiWM.
 
 `gh` is GitHub's command-line tool. It creates the repository and the release for you.
 
@@ -57,8 +60,9 @@ Any name works instead of `nni`; the tools read it from the `origin` remote.
 sh tools/release.sh build
 ```
 
-This builds the `.deb` packages, the source tarball, the Gentoo ebuild and its
-Manifest, and the signed apt repository in `docs/apt/`.
+This builds the `.deb` packages (`nni-base`, `nni-artwork` and `niwm`), the source
+tarballs (nni and NiWM), the Gentoo ebuilds and their Manifests, and the signed apt
+repository in `docs/apt/`.
 
 **The first run creates a signing key** called "nni apt repository". YnniOS uses it to
 check that packages really come from you. Back it up somewhere safe and private.
@@ -77,7 +81,7 @@ sh tools/release.sh publish
 ```
 
 This commits and pushes, then creates the tag `v1.0.0` and a GitHub **Release** with
-the source tarball and the `.deb` files. SGnniOS downloads the tarball from that release.
+the source tarballs and the `.deb` files. SGnniOS downloads the tarballs from that release.
 
 ## 7. Switch on GitHub Pages (once)
 
@@ -126,6 +130,8 @@ fills the **Download** section of `https://<you>.github.io/nni/`.
 
 1. Make your changes.
 2. Raise the number in `VERSION`. Change `CODENAME` too if you want a new breed.
+   NiWM has its own version, `NIWM_VERSION` in `niwm/core/niwm.h`: raise it when
+   NiWM changes, so YnniOS and SGnniOS see the update.
 3. Run `sh tools/release.sh build`.
 4. Run `sh tools/release.sh publish`.
 5. Rebuild the ISOs, then run `sh tools/release.sh isos`.

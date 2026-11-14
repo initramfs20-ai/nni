@@ -2,3 +2,7 @@ out/
 dist/
 artwork/build/
 *.iso
+niwm/niwm-x11
+niwm/niwmctl
+niwm/nibar
+niwm/core/defconfig.h

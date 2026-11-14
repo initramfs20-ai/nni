@@ -1,0 +1,50 @@
+# nibarc - nibar configuration
+#
+# Copy to ~/.config/niwm/nibarc. Unlike niwmrc, you only need the lines
+# you want to change: everything left out keeps its default, shown here.
+# Reload with mod+ctrl+r (niwm's reload) or `pkill -HUP nibar`.
+# Flags given to nibar on the command line win over this file.
+
+# ---- placement ------------------------------------------------------------
+# position left            # left or right edge
+# width 150                # pixels, 80 to 600
+# monitor 1                # which monitor (1 = the primary). For a bar on
+#                          # each monitor, start one per monitor: nibar -m 2
+
+# What happens when a window goes fullscreen:
+#   below   it covers the bar (the default)
+#   above   the bar stays on top of it
+#   beside  it shrinks to fill the screen next to the bar
+# layer below
+
+# ---- colours ----------------------------------------------------------------
+# background #161214
+# foreground #e8dcd8
+# The accent (viewed tag, focus stripe, menu border, the chicken's comb),
+# the border lines and the urgent colour follow niwm's focus_color,
+# normal_color and urgent_color unless you give a colour here.
+# accent auto
+# border auto
+# urgent auto
+
+# font -misc-fixed-medium-r-semicondensed--13-*-*-*-*-*-iso10646-1
+
+# ---- sections -----------------------------------------------------------------
+# logo yes                 # the chicken on the menu button
+# label Apps               # text on the menu button
+# windows viewed           # viewed: windows on the viewed tags; all: every window
+# battery yes
+# network yes
+# clock 24h                # 24h, 12h or off
+# date %a %d %b            # strftime format, or off
+
+# ---- system tray ----------------------------------------------------------------
+# Icons from apps like nm-applet, volume controls or chat apps.
+# tray yes
+# tray_size 18             # pixels, 12 to 48
+#
+# Choose icons by their class name. nibar prints each icon's class when it
+# docks, to wherever niwm's output goes (see `man niwm`, ~/.niwm.log).
+# Names can be listed on one line or over several lines.
+# tray_hide Blueman-applet Pasystray     # never show these
+# tray_show Nm-applet                    # if given, show only these

@@ -1,0 +1,320 @@
+.TH NIBAR 1 "2026" "nibar 0.3.0" "NiWM manual"
+.nh
+.SH NAME
+nibar \- vertical taskbar and applications menu for NiWM
+.SH SYNOPSIS
+.B nibar
+.RB [ \-C
+.IR nibarc ]
+.RB [ \-m
+.IR monitor ]
+.RB [ \-r ]
+.RB [ \-a ]
+.RB [ \-w
+.IR width ]
+.RB [ \-f
+.IR font ]
+.RB [ \-b
+.IR #bg ]
+.RB [ \-c
+.IR #fg ]
+.SH DESCRIPTION
+.B nibar
+is a bar that runs down the left edge of the screen. From top to bottom
+it shows:
+.TP
+.B Apps
+the applications menu (the chicken)
+.TP
+.B tags
+a 3\(mu3 grid. The viewed tags are filled, tags holding windows have a
+mark under the number, and urgent tags are amber.
+.TP
+.B layout
+the current tag's layout
+.TP
+.B windows
+the windows on the viewed tags. The focused one has a stripe on the
+screen edge, and floating windows have a dot.
+.TP
+.B tray
+icons from apps such as nm-applet or a volume control
+.TP
+.B status
+battery and network, then a clock and the date
+.PP
+nibar follows NiWM through
+.BR "niwmctl subscribe" ,
+so it only redraws when something changes. It takes its accent colours
+from NiWM's
+.BR focus_color ,
+.B normal_color
+and
+.BR urgent_color ,
+so
+.B niwmctl set focus_color
+recolours the bar as well. It reserves its own space on screen, so
+tiled windows never go under it.
+.PP
+If NiWM restarts, nibar reconnects by itself.
+.SH CONFIGURATION
+nibar reads the first of these files that exists:
+.IP \(bu 2
+the file given with
+.B \-C
+.IP \(bu 2
+.B $XDG_CONFIG_HOME/niwm/nibarc
+.IP \(bu 2
+.B ~/.config/niwm/nibarc
+.IP \(bu 2
+.B /etc/niwm/nibarc
+.PP
+Unlike niwmrc, a nibarc only needs the lines you change; anything left
+out keeps its default. The stock
+.B /etc/niwm/nibarc
+lists every option with its default, commented out. To start your own:
+.PP
+.RS 4
+.nf
+mkdir \-p ~/.config/niwm
+cp /etc/niwm/nibarc ~/.config/niwm/nibarc
+.fi
+.RE
+.PP
+Each line is an option and a value. A
+.B #
+at the start of a line, or one with a space on both sides, starts a
+comment. Mistakes are reported (see FILES) and the bad line is skipped.
+.PP
+nibarc is read again when NiWM reloads (mod+ctrl+r or
+.BR "niwmctl reload" ),
+or on
+.BR "pkill \-HUP nibar" .
+Command-line flags win over nibarc.
+.SS Options
+.TP
+.BR position " left|right"
+which screen edge (default left)
+.TP
+.BI width " px"
+80 to 600 (default 150)
+.TP
+.BI monitor " N"
+which monitor to sit on, 1 being the primary (default 1). The bar shows
+that monitor's tags and windows; for a bar on every monitor, start one
+nibar per monitor with
+.BR \-m .
+A bar whose monitor is unplugged hides until it comes back.
+.TP
+.BR layer " below|above|beside"
+what happens when a window goes fullscreen.
+.B below
+(the default): it covers the bar.
+.BR above :
+the bar stays on top of it.
+.BR beside :
+it shrinks to fill the screen next to the bar.
+.TP
+.BI background " #rrggbb\fR, \fBforeground\fP #rrggbb"
+the bar's colours (default #161214 and #e8dcd8)
+.TP
+.BR accent ", " border ", " urgent " auto|#rrggbb"
+.B auto
+(the default) follows NiWM's focus_color, normal_color and urgent_color.
+The accent colours the viewed tag, the focus stripe, the menu border and
+the chicken's comb.
+.TP
+.BI font " name"
+an X core font; see
+.B \-f
+.TP
+.BR logo " yes|no"
+show the chicken on the menu button
+.TP
+.BI label " text"
+the menu button's text (default Apps)
+.TP
+.BR windows " viewed|all"
+list windows on the viewed tags only (the default), or on every tag
+.TP
+.BR battery ", " network " yes|no"
+show those status rows
+.TP
+.BR clock " 24h|12h|off"
+the pixel clock
+.TP
+.BI date " format\fR|\fBoff"
+the date under the clock, as a
+.BR strftime (3)
+format (default %a %d %b)
+.TP
+.BR tray " yes|no"
+the system tray (default yes)
+.TP
+.BI tray_size " px"
+icon size, 12 to 48 (default 18)
+.TP
+.BI tray_hide " class..."
+never show icons from these apps
+.TP
+.BI tray_show " class..."
+if given, show only icons from these apps
+.SS Example
+.RS 4
+.nf
+layer beside
+accent #3355ff
+clock 12h
+date %A %d
+tray_hide Blueman\-applet
+.fi
+.RE
+.SH SYSTEM TRAY
+nibar is a freedesktop system tray, so apps that put an icon in a tray
+(nm\-applet, volume controls, chat apps) show it in the bar, above the
+battery. Clicks on an icon go to its app.
+.PP
+.B tray_hide
+and
+.B tray_show
+choose icons by the app's class name, ignoring case. When an icon docks,
+nibar prints its class, for example:
+.PP
+.RS 4
+.nf
+nibar: tray icon 'Nm\-applet' (instance 'nm\-applet')
+.fi
+.RE
+.PP
+Either name works. A hidden icon stays docked, so its app keeps running
+normally. If another tray (stalonetray, trayer) is already running,
+nibar leaves the tray to it. When nibar exits, it hands the icons back
+so their apps can dock them again.
+.SH MOUSE
+.TP
+.B Apps
+left click opens or closes the menu
+.TP
+.B a tag
+left click views it, right click adds it to the view, middle click
+moves the focused window there
+.TP
+.B layout
+left click or wheel down: next layout. Right click or wheel up:
+previous layout.
+.TP
+.B a window
+left click jumps to it, middle click closes it
+.SH THE MENU
+The menu lists every program that has a
+.B .desktop
+file in
+.BR ~/.local/share/applications ,
+.B /usr/local/share/applications
+or
+.BR /usr/share/applications ,
+grouped by category. It is read again each time it opens, so programs
+you just installed are there straight away.
+.PP
+Open it by clicking
+.BR Apps ,
+or with
+.B mod+p
+in the stock niwmrc, which runs
+.BR "niwmctl emit menu" .
+.B pkill \-USR1 nibar
+also works.
+.PP
+Start typing to filter by name. Then:
+.TP
+.B Up/Down, Tab, Page Up/Down, Home/End
+move the selection
+.TP
+.B Enter
+or a left click launches the selection
+.TP
+.B Backspace
+deletes a character;
+.B ctrl+u
+clears the filter
+.TP
+.B Escape
+or a click anywhere else closes the menu
+.PP
+Programs marked
+.B Terminal=true
+open in your terminal, which is found the same way as
+.BR mod+Return .
+The
+.B NiWM
+category at the end has
+.B Reload config
+and
+.BR "Quit NiWM" .
+.PP
+To add your own entry, put a file like this in
+.BR ~/.local/share/applications/mytool.desktop :
+.PP
+.RS 4
+.nf
+[Desktop Entry]
+Type=Application
+Name=My tool
+Exec=mytool \-\-flag
+Categories=Utility;
+.fi
+.RE
+.PP
+A file with the same name as a system one replaces it, and
+.B NoDisplay=true
+hides an entry.
+.SH OPTIONS
+.TP
+.BI \-C " file"
+read this nibarc instead of the usual ones
+.TP
+.BI \-m " N"
+sit on monitor N, as with
+.B monitor
+in nibarc
+.TP
+.B \-r
+sit on the right edge instead of the left
+.TP
+.B \-a
+list windows from every tag, with each window's tag number
+.TP
+.BI \-w " px"
+width in pixels (default 150)
+.TP
+.BI \-f " font"
+an X core font. Use a monospaced one. The default is misc-fixed 6x13,
+which handles accented and non-Latin text when
+.B xfonts-base
+is installed.
+.TP
+.BI \-b " #rrggbb"
+background colour (default #161214)
+.TP
+.BI \-c " #rrggbb"
+text colour (default #e8dcd8)
+.SH EXAMPLES
+In niwmrc:
+.PP
+.RS 4
+.nf
+autostart nibar
+autostart nibar \-r \-w 180
+.fi
+.RE
+.SH FILES
+nibar's messages (nibarc mistakes, tray icon names) go to the same place
+as NiWM's, since NiWM starts it. With
+.B exec niwm\-x11 2> \(dq$HOME/.niwm.log\(dq
+in ~/.xinitrc, that is
+.BR ~/.niwm.log .
+.SH SIGNALS
+SIGHUP re-reads nibarc. SIGUSR1 opens or closes the menu. SIGTERM exits,
+handing tray icons back first.
+.SH SEE ALSO
+.BR niwm (1)

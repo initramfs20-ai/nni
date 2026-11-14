@@ -19,6 +19,22 @@ and share the **nni core**:
 - The busybox boot script, the chicken splash, the handbook, and the `Ynni` icewm theme.
 - Releases with a shared version and a chicken-breed codename. 1.0.0 is "Silkie".
 
+## NiWM
+
+The family's window manager, in [`niwm/`](niwm/): tiling and floating windows on
+nine tags per monitor, in the spirit of awesome but without Lua or a widget toolkit.
+It uses well under 1 MB of memory, and comes with a drop-down scratchpad, window
+swallowing, multiple monitors, and **nibar**, a vertical taskbar with an applications
+menu and a system tray. It runs on any X11 system.
+
+```sh
+pol install niwm            # YnniOS
+spol install x11-wm/niwm    # SGnniOS (accept ~amd64 for it first)
+```
+
+Then put `exec niwm-x11` in `~/.xinitrc`. `man niwm` and `man nibar` cover the rest.
+NiWM has its own version number; its source tarball is attached to each nni release.
+
 ## Download
 
 Ready-made ISOs are on the [project page](https://initramfs20-ai.github.io/nni/#download)
@@ -31,10 +47,11 @@ has a manual page: `man nni`, `man svc`, `man wifi`, `man pol`, `man spol`, `man
 src/                 the nni core: scripts, boot script, services, logos, handbooks
 src/man/             manual pages
 src/splash/          nni-splash, the C program that draws the boot splash
+niwm/                NiWM, the window manager, and nibar (its own Makefile and man pages)
 artwork/             wallpapers, icewm theme, generated splash/kernel-logo/GRUB pictures
-packaging/debian/    builds nni-base and nni-artwork .deb packages
-packaging/gentoo/    the ebuild template
-app-misc/, profiles/, metadata/   the Gentoo overlay (this repo is the overlay)
+packaging/debian/    builds the nni-base, nni-artwork and niwm .deb packages
+packaging/gentoo/    the ebuild templates
+app-misc/, x11-wm/, profiles/, metadata/   the Gentoo overlay (this repo is the overlay)
 docs/                GitHub Pages site, including the apt repository in docs/apt/
 builders/ynnios/     YnniOS ISO builder
 builders/sgnnios/    SGnniOS ISO builder

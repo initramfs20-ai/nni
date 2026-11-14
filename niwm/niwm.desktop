@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=NiWM
+Comment=Lightweight tiling and floating window manager
+Exec=niwm-x11
+Type=Application
+DesktopNames=NiWM

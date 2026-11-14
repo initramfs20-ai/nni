@@ -1,0 +1,447 @@
+.TH NIWM 1 "2026" "niwm 0.6.0" "NiWM manual"
+.nh
+.SH NAME
+niwm-x11, niwmctl \- lightweight tiling and floating window manager
+.SH SYNOPSIS
+.B niwm-x11
+.RB [ \-v ]
+.br
+.B niwmctl
+.I command
+.RI [ args ...]
+.SH DESCRIPTION
+NiWM arranges windows on nine tags. A window can sit on several tags,
+and several tags can be viewed at once. Each tag keeps its own layout:
+.BR tile ,
+.BR monocle ,
+.B grid
+or
+.BR float .
+Any window can float on its own.
+.PP
+NiWM has one command language. The config file is a list of commands,
+key bindings run commands, and
+.B niwmctl
+sends a command to the running window manager.
+.SH FILES
+The first file found is used:
+.IP \(bu 2
+.B $NIWM_CONFIG
+.IP \(bu 2
+.B $XDG_CONFIG_HOME/niwm/niwmrc
+.IP \(bu 2
+.B ~/.config/niwm/niwmrc
+.IP \(bu 2
+.B /etc/niwm/niwmrc
+.PP
+With none of them present, a built-in copy of the stock niwmrc is used.
+.SH SETTING UP NIWMRC
+NiWM does not create
+.B ~/.config/niwm
+for you. Until you make it, the system-wide
+.B /etc/niwm/niwmrc
+is used.
+.PP
+Your own niwmrc
+.B replaces
+the stock one; it is not added on top. A file holding only
+.B set gap 10
+leaves you with no key bindings at all. So start from a copy of the
+stock file and edit it:
+.PP
+.RS 4
+.nf
+mkdir \-p ~/.config/niwm
+cp /etc/niwm/niwmrc ~/.config/niwm/niwmrc
+nano ~/.config/niwm/niwmrc
+.fi
+.RE
+.PP
+Save, then press
+.B mod+ctrl+r
+(or run
+.BR "niwmctl reload" )
+to apply it without logging out.
+.PP
+Every line is one command, and lines starting with
+.B #
+are comments. Any line can be tried live first, then copied into the
+file once it looks right:
+.PP
+.RS 4
+.nf
+niwmctl set gap 10
+niwmctl set focus_color #3355ff
+.fi
+.RE
+.PP
+An example of lines you might change or add:
+.PP
+.RS 4
+.nf
+# look
+set gap 10
+set border 3
+set focus_color #c23b3b
+# leave room for a bar
+set pad_top 18
+
+# use alt instead of the super key
+set mod alt
+
+# programs (set terminal goes above the autostart lines)
+set terminal lxterminal
+bind mod+b spawn midori
+bind mod+e spawn pcmanfm
+bind Print spawn scrot
+
+# run once at login (ignored on reload)
+autostart feh \-\-bg\-fill ~/wallpaper.png
+
+# windows
+rule class=mpv float
+rule class=Midori tag 2
+.fi
+.RE
+.PP
+Use
+.B niwmctl clients
+to find a window's class for a
+.B rule
+line.
+.PP
+Mistakes in niwmrc never stop NiWM: the bad line is skipped and the rest
+of the file still loads. The error is printed to stderr as
+.IR "niwm: file:line: message" .
+To keep those messages, start NiWM from
+.B ~/.xinitrc
+like this:
+.PP
+.RS 4
+.nf
+exec niwm\-x11 2> "$HOME/.niwm.log"
+.fi
+.RE
+.SH DEFAULT KEYS
+.B mod
+is Super unless
+.B set mod
+says otherwise.
+.TP
+.B mod+Return
+terminal (see TERMINAL below)
+.TP
+.B mod+s
+show or hide the scratchpad terminal
+.TP
+.B mod+r
+dmenu_run
+.TP
+.B mod+p
+nibar's applications menu
+.TP
+.B mod+j / mod+k
+focus next / previous
+.TP
+.B mod+shift+j / mod+shift+k
+swap with next / previous
+.TP
+.B mod+ctrl+Return
+make focused window the master
+.TP
+.B mod+space
+next layout (t, m, g: tile, monocle, grid; shift+f: float)
+.TP
+.B mod+ctrl+space
+toggle floating
+.TP
+.B mod+f
+toggle fullscreen
+.TP
+.B mod+h / mod+l
+shrink / grow master area
+.TP
+.B mod+1..9
+view tag;
+.B shift
+moves the window,
+.B ctrl
+adds the tag to the view,
+.B ctrl+shift
+toggles the window on that tag
+.TP
+.B mod+Tab
+previous view
+.TP
+.B mod+period / mod+comma
+select the next / previous monitor
+.TP
+.B mod+shift+period / mod+shift+comma
+send the focused window to the next / previous monitor
+.TP
+.B mod+button1 / mod+button3
+move / resize (floats the window)
+.TP
+.B mod+shift+c
+close window
+.TP
+.B mod+ctrl+r
+reload niwmrc
+.TP
+.B mod+shift+q
+quit
+.SH COMMANDS
+Run
+.B niwmctl help
+for the full list. The main ones:
+.TP
+.BI spawn " cmd"
+run a shell command
+.TP
+.BI autostart " cmd"
+run once at login (ignored on reload)
+.TP
+.BI scratchpad " [cmd]"
+show or hide the scratchpad, a floating window that drops down at the
+top of the screen. If there is none yet,
+.I cmd
+is started and the next window that opens becomes the scratchpad. It
+then hides and comes back, still running, and follows you to whatever
+tag you are on. Pressing it while the scratchpad is shown but not
+focused focuses it.
+.TP
+\fBview\fR \fIN\fR|all|prev, \fBtag\fR \fIN\fR|all, \fBtoggleview\fR \fIN\fR, \fBtoggletag\fR \fIN\fR
+.TP
+.BR "layout " tile|monocle|grid|float|next|prev
+.TP
+\fBmfact\fR 0.6|+0.05, \fBnmaster\fR 2|+1
+.TP
+.BI set " key value"
+border, gap, focus_color, normal_color, urgent_color, smart_borders,
+pad_top, pad_bottom, mod, tags, layout, mfact, nmaster,
+focus_follows_mouse,
+.B swallow
+(yes or no, see SWALLOWING),
+.B terminal
+(sets $TERMINAL) and
+.B scratchpad_size
+(width and height in percent, written like the default 60x45)
+.TP
+.BI bind " combo command"
+e.g.
+.B bind mod+shift+Return spawn st
+.TP
+.BI rule " match... action"
+match with class=, instance= (exact) or title= (substring); action is
+.BR float ,
+.BR tile ,
+.BI tag " N" ,
+.BI monitor " N" ,
+.B scratchpad
+(the window becomes the scratchpad),
+.B noswallow
+(it never swallows its terminal) or
+.B terminal
+(it counts as a terminal for swallowing)
+.TP
+.BR kill " [\fIid\fR]"
+close the focused window, or the window with that id
+.TP
+.BI activate " id"
+view the window's tag if it is hidden, then focus it
+.TP
+.B query
+current tags, layout and focused window, one fact per line, for bars
+and scripts
+.TP
+.B clients
+every window: id, tags, class and title
+.TP
+.B subscribe
+keep the connection open and print a full state block every time
+something changes (see SCRIPTING)
+.TP
+.BI emit " text"
+send
+.BI "event " text
+to every subscriber. The stock
+.B mod+p
+uses
+.B emit menu
+to open nibar's menu.
+.SH MONITORS
+NiWM finds monitors through RandR, and each one has its own nine tags,
+layouts and bar space, like awesome. Monitor 1 is the primary, then the
+others from left to right. New windows open on the selected monitor,
+which is the one holding the focused window, or the one under the
+pointer when you move it over an empty desktop.
+.PP
+.B focusmon
+selects a monitor and
+.B tagmon
+sends the focused window to one (both take
+.BR next ,
+.B prev
+or a number); a rule can send a program's windows to a monitor with
+.BI monitor " N" \fR.
+Dragging a floating window onto another monitor moves it there.
+Unplugging a monitor moves its windows to monitor 1.
+.PP
+.BR "xrandr \-\-setmonitor"
+can split one screen into virtual monitors, which is handy for a wide
+screen, or for trying this out on a laptop:
+.PP
+.RS 4
+.nf
+xrandr \-\-setmonitor L 683/181x768/203+0+0 eDP\-1
+xrandr \-\-setmonitor R 683/181x768/203+683+0 none
+.fi
+.RE
+.PP
+Here a 1366x768 screen on output eDP\-1 becomes two halves (the numbers
+after each / are sizes in millimetres; any will do). Find your output's
+name with
+.BR "xrandr \-q" .
+Undo it with
+.B xrandr \-\-delmonitor L
+and
+.BR "xrandr \-\-delmonitor R" .
+NiWM follows these changes as they happen.
+.PP
+Each
+.BR nibar (1)
+sits on one monitor; start one per monitor, e.g.
+.B autostart nibar \-m 2
+for the second.
+.SH SWALLOWING
+A window started from a terminal, such as
+.B mpv video.mp4
+or an image viewer, swallows the terminal: it takes the terminal's
+exact place in the layout and the terminal hides. When the window
+closes, the terminal comes back in the same place with the focus, and
+nibar lists the window in the terminal's place meanwhile.
+.PP
+NiWM decides this from processes: the terminal's process has to be an
+ancestor of the new window's process (looked up in
+.BR /proc ).
+Terminals such as lxterminal open every window from one process; then
+the terminal window you were using, the focused or most recently focused
+one, is swallowed.
+.PP
+Only plain tiled windows swallow. Dialogs and floating windows, windows
+a rule sends to another tag, terminals started from terminals, and the
+scratchpad are left alone. While a terminal is swallowed, other programs
+started from it open normally.
+.PP
+Common terminals are recognised by their class, as is whatever
+$TERMINAL names. Use
+.B rule class=X terminal
+for another one,
+.B rule class=X noswallow
+for a program that should open beside its terminal instead, and
+.B set swallow no
+to turn swallowing off.
+.PP
+The window's process comes from
+.BR _NET_WM_PID .
+For programs that don't set it, NiWM asks the X server through the XRes
+extension, when built with xcb-res.
+.SH TERMINAL
+At startup NiWM sets
+.B $TERMINAL
+to the first of \%x\-terminal\-emulator, \%lxterminal, xfce4\-terminal,
+alacritty, foot, st, urxvt and xterm that is installed, unless
+$TERMINAL already names an installed program.
+.B set terminal
+in niwmrc picks one yourself. mod+Return, the scratchpad and nibar's
+menu all use it.
+.SH BARS
+NiWM honours
+.B _NET_WM_STRUT
+and
+.BR _NET_WM_STRUT_PARTIAL ,
+so a dock (nibar, lemonbar, polybar, tint2) gets its own space and
+tiled windows never go under it. The stock niwmrc starts
+.BR nibar (1).
+.PP
+A dock chooses what happens when a window goes fullscreen by setting
+.B _NIWM_LAYER
+to
+.B below
+(it is covered, the default),
+.B above
+(it stays on top) or
+.B beside
+(fullscreen windows leave its space free). A dock with
+.B _NET_WM_STATE_ABOVE
+counts as above. nibar sets this from
+.B layer
+in nibarc.
+.PP
+.B reload
+also sends
+.B event reload
+to subscribers, so nibar re-reads nibarc at the same time.
+.SH SCRIPTING
+.B niwmctl subscribe
+prints a block like this, then a new one after every change:
+.PP
+.RS 4
+.nf
+begin
+tags 9
+view 1
+occupied 5
+urgent 0
+layout tile
+colors c23b3b 3a3a3a e0a030
+monitor 0 0 0 1366 768 1 5 0 tile *
+client 60000c 4 \- 0 XTerm<tab>title
+client 40000c 1 f 0 Midori<tab>title
+end
+.fi
+.RE
+.PP
+.BR view ,
+.B occupied
+and
+.B urgent
+are tag bit masks in hex (5 = tags 1 and 3), for the selected monitor.
+Each
+.B monitor
+line gives its number (0 = the primary), x, y, width, height, view,
+occupied, urgent, layout, and * if it is selected. After
+.B client
+come the window id, its tag mask and its flags:
+.B f
+focused,
+.B F
+floating,
+.B S
+fullscreen,
+.B u
+urgent,
+.B s
+scratchpad,
+.B w
+swallowing a terminal, or
+.B \-
+for none. Then its monitor number, the class, a tab, and the title.
+.PP
+For example, a script can print the focused title every time it
+changes:
+.PP
+.RS 4
+.nf
+niwmctl subscribe | while read \-r kind id tags flags rest; do
+    case $kind$flags in clientf*) echo "$rest" ;; esac
+done
+.fi
+.RE
+.SH SIGNALS
+SIGHUP reloads the config. SIGTERM and SIGINT exit cleanly.
+.SH ENVIRONMENT
+.B NIWM_SOCKET
+is set for every program NiWM starts and tells niwmctl where to connect.
+.SH SEE ALSO
+.BR nibar (1)

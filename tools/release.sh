@@ -3,9 +3,11 @@
 #
 #   sh tools/release.sh build     make everything for the current VERSION:
 #                                   dist/nni-VERSION.tar.gz       (source, for SGnniOS)
+#                                   dist/niwm-NIWMVERSION.tar.gz  (NiWM source, for SGnniOS)
 #                                   dist/*.deb                    (YnniOS packages)
 #                                   docs/apt/                     (apt repo for GitHub Pages)
 #                                   app-misc/nni-base/            (Gentoo ebuild + Manifest)
+#                                   x11-wm/niwm/                  (Gentoo ebuild + Manifest)
 #   sh tools/release.sh source    only the source tarball + Gentoo ebuild (no signing)
 #   sh tools/release.sh publish   commit, tag vVERSION, push, and create the GitHub
 #                                 release with the source tarball (needs: gh auth login)
@@ -14,12 +16,16 @@
 #
 # To make a new version: change VERSION (and CODENAME if you like), then build + publish.
 # Needs on the build PC: git, make, gcc, dpkg-deb, dpkg-scanpackages, gpg, b2sum,
-# and gh for publish:  sudo apt install git build-essential dpkg-dev gnupg gh
+# pkg-config and the xcb headers (for NiWM), and gh for publish:
+#   sudo apt install git build-essential dpkg-dev gnupg gh pkg-config \
+#                    libxcb1-dev libxcb-randr0-dev libxcb-res0-dev
 set -eu
 TOP=$(cd "$(dirname "$0")/.." && pwd)
 cd "$TOP"
 VERSION=$(cat VERSION)
 CODENAME=$(cat CODENAME)
+# NiWM keeps its own version number
+NIWM_VERSION=$(sed -n 's/^#define NIWM_VERSION "\(.*\)"/\1/p' niwm/core/niwm.h)
 DIST=$TOP/dist
 KEYNAME="nni apt repository"
 
@@ -62,6 +68,31 @@ source_tarball() {
   echo "built: $out"
 }
 
+niwm_tarball() {
+  out="$DIST/niwm-$NIWM_VERSION.tar.gz"
+  tmp=$(mktemp -d)
+  make -C niwm clean >/dev/null
+  cp -a niwm "$tmp/niwm-$NIWM_VERSION"
+  cp LICENSE "$tmp/niwm-$NIWM_VERSION/"
+  epoch=$(git -c safe.directory="$TOP" log -1 --format=%ct 2>/dev/null || echo 1700000000)
+  ( cd "$tmp" && tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@$epoch" \
+      -cf - "niwm-$NIWM_VERSION" ) | gzip -n -9 > "$out"
+  rm -rf "$tmp"
+  echo "built: $out"
+}
+
+# an ebuild + Manifest in the overlay: overlay_pkg CATEGORY/NAME VERSION TEMPLATE METADATA TARBALL
+overlay_pkg() {
+  d="$TOP/$1"; name=${1#*/}
+  mkdir -p "$d"
+  rm -f "$d/$name"-*.ebuild
+  sed -e "s|@REPO_URL@|$REPO_URL|g" -e "s|@NNI_VERSION@|$VERSION|g" "$3" > "$d/$name-$2.ebuild"
+  cp "$4" "$d/metadata.xml"
+  f=$5
+  echo "DIST $(basename "$f") $(wc -c < "$f" | tr -d ' ') BLAKE2B $(b2sum "$f" | cut -d' ' -f1) SHA512 $(sha512sum "$f" | cut -d' ' -f1)" > "$d/Manifest"
+  echo "built: $1/$name-$2.ebuild (+ Manifest)"
+}
+
 gentoo_overlay() {
   d="$TOP/app-misc/nni-base"
   mkdir -p "$d"
@@ -74,6 +105,8 @@ gentoo_overlay() {
   sha=$(sha512sum "$f" | cut -d' ' -f1)
   echo "DIST nni-$VERSION.tar.gz $size BLAKE2B $b2 SHA512 $sha" > "$d/Manifest"
   echo "built: app-misc/nni-base/nni-base-$VERSION.ebuild (+ Manifest)"
+  overlay_pkg x11-wm/niwm "$NIWM_VERSION" packaging/gentoo/niwm.ebuild.in \
+              packaging/gentoo/niwm-metadata.xml "$DIST/niwm-$NIWM_VERSION.tar.gz"
 }
 
 signing_key() {
@@ -93,7 +126,8 @@ apt_repo() {
   a="$TOP/docs/apt"
   mkdir -p "$a/pool"
   rm -f "$a"/pool/*.deb
-  cp "$DIST"/nni-base_"$VERSION"_amd64.deb "$DIST"/nni-artwork_"$VERSION"_all.deb "$a/pool/"
+  cp "$DIST"/nni-base_"$VERSION"_amd64.deb "$DIST"/nni-artwork_"$VERSION"_all.deb \
+     "$DIST"/niwm_"$NIWM_VERSION"_*.deb "$a/pool/"
   ( cd "$a" && dpkg-scanpackages --multiversion pool /dev/null 2>/dev/null > Packages && gzip -n -9 -k -f Packages )
   {
     echo "Origin: nni"
@@ -128,10 +162,12 @@ build() {
   for t in make dpkg-deb dpkg-scanpackages gpg b2sum sha512sum tar gzip; do
     command -v "$t" >/dev/null || die "missing $t (sudo apt install build-essential dpkg-dev gnupg)"
   done
+  [ -n "$NIWM_VERSION" ] || die "can't read NIWM_VERSION from niwm/core/niwm.h"
   mkdir -p "$DIST"
-  rm -f "$DIST"/*.deb "$DIST"/nni-*.tar.gz
+  rm -f "$DIST"/*.deb "$DIST"/nni-*.tar.gz "$DIST"/niwm-*.tar.gz
   sh packaging/debian/build-deb.sh "$DIST" "$REPO_URL"
   source_tarball
+  niwm_tarball
   gentoo_overlay
   apt_repo
   echo
@@ -144,15 +180,18 @@ publish() {
   gh auth status >/dev/null 2>&1 || die "log in to GitHub first: gh auth login"
   case "$REPO_URL" in *YOUR-GITHUB-USER*) die "no GitHub remote: git remote add origin https://github.com/<you>/nni.git" ;; esac
   [ -f "$DIST/nni-$VERSION.tar.gz" ] || die "run 'sh tools/release.sh build' first"
+  [ -f "$DIST/niwm-$NIWM_VERSION.tar.gz" ] || die "run 'sh tools/release.sh build' first (no NiWM tarball)"
   git add -A
   git commit -m "nni $VERSION \"$CODENAME\"" || echo "release: nothing new to commit"
   git tag -f "v$VERSION"
   git push origin HEAD
   git push -f origin "v$VERSION"
   if gh release view "v$VERSION" >/dev/null 2>&1; then
-    gh release upload "v$VERSION" "$DIST/nni-$VERSION.tar.gz" "$DIST"/*.deb --clobber
+    gh release upload "v$VERSION" "$DIST/nni-$VERSION.tar.gz" "$DIST/niwm-$NIWM_VERSION.tar.gz" \
+      "$DIST"/*.deb --clobber
   else
-    gh release create "v$VERSION" "$DIST/nni-$VERSION.tar.gz" "$DIST"/*.deb \
+    gh release create "v$VERSION" "$DIST/nni-$VERSION.tar.gz" "$DIST/niwm-$NIWM_VERSION.tar.gz" \
+      "$DIST"/*.deb \
       --title "nni $VERSION \"$CODENAME\"" --notes "nni family release $VERSION ($CODENAME)."
   fi
   echo
@@ -253,7 +292,8 @@ isos() {
 
 case "${1:-}" in
   source)  # just the source tarball + Gentoo ebuild (used by the SGnniOS builder)
-           mkdir -p "$DIST"; rm -f "$DIST"/nni-*.tar.gz; source_tarball; gentoo_overlay ;;
+           mkdir -p "$DIST"; rm -f "$DIST"/nni-*.tar.gz "$DIST"/niwm-*.tar.gz
+           source_tarball; niwm_tarball; gentoo_overlay ;;
   build)   build ;;
   publish) publish ;;
   isos)    isos ;;
