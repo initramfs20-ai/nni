@@ -11,7 +11,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define NIWM_VERSION "0.6.0"
+#define NIWM_VERSION "0.7.0"
 #define MAX_TAGS 9
 #define MAX_MONS 8
 
@@ -99,6 +99,7 @@ typedef struct {
 	void (*fullscreen)(client *c, int on);
 	void (*grab_keys)(void);
 	void (*sync)(void);                 /* publish state (EWMH etc.) */
+	char *(*resources)(void);           /* X resources text (malloc'd), or NULL */
 } backend;
 
 struct wm {

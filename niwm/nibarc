@@ -2,6 +2,8 @@
 #
 # Copy to ~/.config/niwm/nibarc. Unlike niwmrc, you only need the lines
 # you want to change: everything left out keeps its default, shown here.
+# Desktop themes (nni theme) set the colours through X resources; a colour
+# you set here wins over the theme.
 # Reload with mod+ctrl+r (niwm's reload) or `pkill -HUP nibar`.
 # Flags given to nibar on the command line win over this file.
 
@@ -31,6 +33,7 @@
 
 # ---- sections -----------------------------------------------------------------
 # logo yes                 # the chicken on the menu button
+# logo_color auto          # the chicken's body; auto = the text colour
 # label Apps               # text on the menu button
 # windows viewed           # viewed: windows on the viewed tags; all: every window
 # battery yes

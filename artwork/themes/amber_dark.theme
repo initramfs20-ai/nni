@@ -1,0 +1,12 @@
+# nni theme: Amber Dark - warm charcoal and amber
+NAME="Amber Dark"
+WALLPAPER="04_amber_dark"
+ACCENT="#f8b520"
+BORDER="#513214"
+URGENT="#e8613a"
+BAR_BG="#1f1b18"
+BAR_FG="#ece0d1"
+LOGO="auto"
+TERM_BG="#191512"
+TERM_FG="#ece0d1"
+PALETTE="#2a2420 #e8613a #9fbf5a #f8b520 #6f9fd8 #c78ac7 #6fc1b1 #ece0d1 #5a4a3c #ff8a5c #bcd97a #ffd25a #94bdf0 #e2a8e2 #8fdcca #ffffff"

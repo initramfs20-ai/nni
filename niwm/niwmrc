@@ -8,9 +8,12 @@
 # ---- look ---------------------------------------------------------------
 set border 2
 set gap 6
-set focus_color #c23b3b
-set normal_color #3a3a3a
-set urgent_color #e0a030
+# Colours: these are the defaults. They are commented out so a desktop
+# theme (nni theme, or niwm.focus_color etc. in your X resources) can set
+# them; uncomment a line to fix that colour whatever the theme says.
+# set focus_color #c23b3b
+# set normal_color #3a3a3a
+# set urgent_color #e0a030
 # no border when a window is alone or in monocle
 set smart_borders yes
 # extra empty space at the top/bottom (pixels). Bars such as nibar

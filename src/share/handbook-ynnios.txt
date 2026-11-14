@@ -166,10 +166,19 @@ The "wifi" shortcut
     window list, the tray, battery, network and the clock. The menu's
     "System" and "Settings" groups hold the Handbook, System info,
     Settings, Services, Next wallpaper, Reboot and Power off.
-  * Wallpapers (command line):
+  * Themes: each wallpaper comes with colours to match for the window
+    borders, the bar and the terminal. Pick one by name or number:
+        nni theme list            1) Debian Crimson  2) Midnight Blue
+                                  3) Pastel Sunrise  4) Amber Dark
+        nni theme "Midnight Blue"
+        nni-theme next            (the same, shorter)
+    The desktop changes at once; terminals you open afterwards use the
+    new colours. nni theme none goes back to plain colours.
+  * Wallpapers on their own (the theme's colours stay):
         nni wallpaper list
         nni wallpaper 3
         nni wallpaper next
+        nni wallpaper /root/pictures/mine.png
     They are in /usr/share/backgrounds/nni (package nni-artwork).
   * Drivers: most graphics (Intel, AMD, NVIDIA via nouveau, VESA,
     fbdev), input, Wi-Fi and common firmware are preinstalled.
@@ -306,6 +315,15 @@ the /run fix. Rebuild with the current build-iso.sh.
                 the .desktop files in /usr/share/applications. Add your
                 own entry in ~/.local/share/applications (man nibar).
   Wallpaper     nni wallpaper N, or nni wallpaper next.
+  Theme         nni theme NAME (wallpaper and colours together).
+  Own theme     cp /usr/share/nni/themes/amber_dark.theme /etc/nni/themes/mine.theme
+                then edit it: NAME, WALLPAPER (a number or a picture's
+                full path) and the colours. nni theme mine uses it.
+  Theme colours ignored? A colour set in ~/.config/niwm/niwmrc or
+                nibarc wins over the theme: delete those lines. Installs
+                from before YnniOS 1.3 also have XTerm*background and
+                XTerm*foreground in ~/.Xresources, which keep the
+                terminal black and white: delete those two lines.
 
   No systemd  YnniOS has no systemd. There is no systemctl or journalctl.
                 Power:   poweroff   reboot   halt      (busybox applets)

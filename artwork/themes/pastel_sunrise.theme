@@ -1,0 +1,14 @@
+# nni theme: Pastel Sunrise - a light peach bar with coral, and a warm
+# dark terminal so coloured text stays readable
+NAME="Pastel Sunrise"
+WALLPAPER="03_pastel_sunrise"
+ACCENT="#fb5f4b"
+BORDER="#e8b48a"
+URGENT="#d9432f"
+BAR_BG="#fcefe3"
+BAR_FG="#3d2a19"
+# on a light bar the chicken is drawn amber instead of in the text colour
+LOGO="#f59e2e"
+TERM_BG="#2b1d12"
+TERM_FG="#fcefe3"
+PALETTE="#3d2a19 #fb5f4b #a8c66c #fdb63f #7aa6d9 #e88fb8 #7cc7b8 #fcefe3 #6b5442 #ff8a78 #c4e08c #ffd27a #9cc2f0 #f6b0d0 #9fe0d2 #ffffff"

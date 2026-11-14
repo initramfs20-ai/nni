@@ -5,7 +5,7 @@ A lightweight tiling and floating window manager for the nni family
 widget toolkit. One backend-agnostic core, small per-display-server
 backends.
 
-**Status: 0.6.0.** The X11 backend and nibar work. Wayland is planned (see `wayland/`).
+**Status: 0.7.0.** The X11 backend and nibar work. Wayland is planned (see `wayland/`).
 
 ## Memory
 
@@ -59,6 +59,7 @@ niwmrc     stock config, also compiled in as the fallback
 - **Scratchpad:** mod+s drops a terminal down from the top of the screen and hides it again, still running. It follows you to whatever tag you're on, and any program can be the scratchpad.
 - **Multiple monitors:** each has its own tags, layouts and bar, as in awesome. mod+period and mod+comma move between monitors, and adding shift sends the window over. Hotplugging works, and so does `xrandr --setmonitor` for splitting one screen.
 - **Swallowing:** run `mpv video.mp4` from a terminal and the video takes the terminal's place until it closes. This works with terminals like lxterminal that run every window from one process, and `rule class=X noswallow` turns it off per app.
+- **Themeable:** `niwm.focus_color: #3355ff` in your X resources works like `set focus_color` in niwmrc, and nibar reads `nibar.*` resources the same way. Anything your niwmrc or nibarc sets itself still wins.
 - **Finds your terminal:** `$TERMINAL` is set to the first installed terminal, or to the one in `set terminal`.
 
 ## nibar

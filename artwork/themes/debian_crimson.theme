@@ -1,0 +1,15 @@
+# nni theme: Debian Crimson - deep red, with a yolk-yellow alert
+NAME="Debian Crimson"
+WALLPAPER="01_debian_crimson"
+# NiWM: focused border, other borders, urgent windows (nibar's accent follows)
+ACCENT="#e52d36"
+BORDER="#4a1a24"
+URGENT="#fbba2d"
+# nibar
+BAR_BG="#1a0a0e"
+BAR_FG="#f3e1e4"
+LOGO="auto"
+# terminal (xterm): background, text, and the 16 colours 0-15
+TERM_BG="#14080b"
+TERM_FG="#f3e1e4"
+PALETTE="#2a1418 #e52d36 #8fbf6a #fbba2d #6c8fd6 #d76a9e #5fb8b0 #e8d6d9 #5a3a40 #ff5c63 #a8d98a #ffd166 #8eabef #f08cbf #7fd6cd #ffffff"

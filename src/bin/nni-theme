@@ -1,0 +1,3 @@
+#!/bin/sh
+# shortcut: nni-theme is nni theme
+exec nni theme "$@"

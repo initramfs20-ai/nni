@@ -8,7 +8,7 @@ SHARE=${NNI_SHARE:-$R/usr/share/nni}
 CONF=$R/etc/nni.conf
 STATE=$R/etc/nni
 
-KEYS="HOSTNAME TIMEZONE KEYMAP CONSOLE_FONT XKB_LAYOUT WIFI_AUTO WALLPAPER SPLASH"
+KEYS="HOSTNAME TIMEZONE KEYMAP CONSOLE_FONT XKB_LAYOUT WIFI_AUTO WALLPAPER THEME SPLASH"
 
 die()  { echo "nni: $*" >&2; exit 1; }
 need_root() { [ -n "$R" ] || [ "$(id -u)" -eq 0 ] || die "'$1' needs root (try: doas nni $*)"; }
@@ -21,7 +21,8 @@ describe() {
     CONSOLE_FONT) echo "console font, e.g. Lat15-Terminus16 (needs the kbd package)" ;;
     XKB_LAYOUT)   echo "desktop keyboard layout, e.g. latam, us, es (full edition)" ;;
     WIFI_AUTO)    echo "yes = connect to saved Wi-Fi at boot" ;;
-    WALLPAPER)    echo "desktop wallpaper: number or name (nni wallpaper list)" ;;
+    WALLPAPER)    echo "desktop wallpaper: number, name or a file (nni wallpaper list)" ;;
+    THEME)        echo "desktop theme: wallpaper + colours, or none (nni theme list)" ;;
     SPLASH)       echo "yes = show the chicken splash while booting" ;;
   esac
 }
@@ -49,6 +50,7 @@ defaults() {
   WIFI_AUTO=no
   for f in "$R/etc/ynnios-wifi-auto" "$R/etc/sgnnios-wifi-auto"; do [ -e "$f" ] && WIFI_AUTO=yes; done
   WALLPAPER=1
+  THEME=
   SPLASH=yes
 }
 
@@ -56,6 +58,10 @@ load() {
   defaults
   # shellcheck disable=SC1090
   [ -r "$CONF" ] && . "$CONF"
+}
+
+can_save() { # root, or a test root, may write /etc/nni.conf
+  [ -n "$R" ] || [ -w "$CONF" ] || { [ ! -e "$CONF" ] && [ -w "$(dirname "$CONF")" ]; }
 }
 
 write_conf() {
@@ -83,6 +89,10 @@ check_value() { # key value
       case "$2" in ''|*[!A-Za-z0-9-]*) die "a hostname may only use letters, digits and -" ;; esac ;;
     TIMEZONE)
       [ -f "$R/usr/share/zoneinfo/$2" ] || die "unknown time zone '$2' (look in /usr/share/zoneinfo)" ;;
+    THEME)
+      case "$2" in ''|none|off) v= ;;
+        *) v=$(theme_find "$2") || { echo "nni: unknown theme '$2'" >&2; theme_list >&2; exit 1; } ;;
+      esac ;;
   esac
 }
 
@@ -119,7 +129,14 @@ apply_console() {
 
 apply_x() {   # called from ~/.xinitrc before the desktop starts
   [ -n "$XKB_LAYOUT" ] && command -v setxkbmap >/dev/null 2>&1 && setxkbmap "$XKB_LAYOUT"
-  [ -f "$HOME/.Xresources" ] && command -v xrdb >/dev/null 2>&1 && xrdb -nocpp -merge "$HOME/.Xresources"
+  # X resources, later ones winning: nni's defaults, the theme, your ~/.Xresources
+  if command -v xrdb >/dev/null 2>&1; then
+    [ -f "$SHARE/xresources" ] && xrdb -nocpp -merge "$SHARE/xresources"
+    if [ -n "$THEME" ] && id=$(theme_find "$THEME"); then
+      theme_resources "$(theme_file "$id")" | xrdb -nocpp -merge -
+    fi
+    [ -f "$HOME/.Xresources" ] && xrdb -nocpp -merge "$HOME/.Xresources"
+  fi
   wallpaper_apply quiet
   return 0
 }
@@ -149,6 +166,7 @@ wall_list() {
 }
 
 wall_pick() { # prints the file for $WALLPAPER
+  case "$WALLPAPER" in /*) [ -f "$R$WALLPAPER" ] && { echo "$R$WALLPAPER"; return 0; }; return 1 ;; esac
   d=$(wall_dir) || return 1
   i=1
   for f in "$d"/*.png; do
@@ -180,6 +198,84 @@ wallpaper_apply() {
     command -v icewmbg >/dev/null 2>&1 && pidof icewm >/dev/null 2>&1 && icewmbg -r >/dev/null 2>&1
   fi
   [ "$1" = quiet ] || echo "wallpaper: $(basename "$pick")"
+  return 0
+}
+
+# ------------------------------------------------------------------ themes
+# A theme is a small file of NAME="value" lines (see /usr/share/nni/themes):
+# a wallpaper plus colours for NiWM, nibar and the terminal, handed to them
+# as X resources. Your own themes go in /etc/nni/themes and win over ours.
+theme_dirs() { echo "$R/etc/nni/themes $R/usr/share/nni/themes"; }
+
+theme_ids() { # every theme once, in wallpaper order (theme 1 uses wallpaper 1), yours last
+  for d in $(theme_dirs); do
+    for f in "$d"/*.theme; do [ -f "$f" ] && basename "$f" .theme; done
+  done | sort -u | while read -r id; do
+    w=$(theme_get WALLPAPER "$(theme_file "$id")")
+    case "$w" in [0-9]*) printf '%s %s\n' "$w" "$id" ;; *) printf '~ %s\n' "$id" ;; esac
+  done | sort | cut -d' ' -f2
+}
+
+theme_file() { # id -> its file
+  for d in $(theme_dirs); do [ -f "$d/$1.theme" ] && { echo "$d/$1.theme"; return 0; }; done
+  return 1
+}
+
+theme_get() { # KEY FILE -> value, with or without quotes
+  sed -n "s/^$1=\"\(.*\)\".*/\1/p; s/^$1=\([^\" ]*\).*/\1/p" "$2" | head -n 1
+}
+
+theme_find() { # number, id or name ("Debian Crimson", debian-crimson ...) -> id
+  want=$(echo "$*" | tr 'A-Z -' 'a-z__')
+  i=1
+  for id in $(theme_ids); do
+    name=$(theme_get NAME "$(theme_file "$id")" | tr 'A-Z -' 'a-z__')
+    case "$want" in "$i"|"$id"|"$name") echo "$id"; return 0 ;; esac
+    i=$((i+1))
+  done
+  return 1
+}
+
+theme_list() {
+  ids=$(theme_ids)
+  [ -n "$ids" ] || { echo "no themes installed (they come with the full edition: nni-artwork)"; return 1; }
+  cur=; [ -n "$THEME" ] && cur=$(theme_find "$THEME")
+  i=1
+  for id in $ids; do
+    mark=" "; [ "$id" = "$cur" ] && mark="*"
+    printf '%s %d) %-16s %s\n' "$mark" "$i" "$(theme_get NAME "$(theme_file "$id")")" "($id)"
+    i=$((i+1))
+  done
+}
+
+theme_resources() { # FILE -> X resources for NiWM, nibar and xterm
+  f=$1
+  for pair in ACCENT:niwm.focus_color BORDER:niwm.normal_color URGENT:niwm.urgent_color \
+              BAR_BG:nibar.background BAR_FG:nibar.foreground LOGO:nibar.logo_color \
+              TERM_BG:XTerm*background TERM_FG:XTerm*foreground ACCENT:XTerm*cursorColor; do
+    val=$(theme_get "${pair%%:*}" "$f")
+    [ -n "$val" ] && echo "${pair#*:}: $val"
+  done
+  n=0
+  for c in $(theme_get PALETTE "$f"); do echo "XTerm*color$n: $c"; n=$((n+1)); done
+}
+
+theme_apply() { # [quiet]
+  [ -n "$THEME" ] || return 0
+  id=$(theme_find "$THEME") || { [ "$1" = quiet ] || echo "nni: unknown theme '$THEME' (nni theme list)" >&2; return 0; }
+  f=$(theme_file "$id")
+  wp=$(theme_get WALLPAPER "$f")
+  if [ -n "$wp" ] && [ "$wp" != "$WALLPAPER" ]; then
+    WALLPAPER=$wp
+    can_save && write_conf 2>/dev/null
+  fi
+  wallpaper_apply quiet
+  if [ -z "$R" ] && [ -n "$DISPLAY" ] && command -v xrdb >/dev/null 2>&1; then
+    theme_resources "$f" | xrdb -nocpp -merge - 2>/dev/null
+    # NiWM re-reads its colours, and tells nibar to do the same
+    command -v niwmctl >/dev/null 2>&1 && niwmctl reload >/dev/null 2>&1
+  fi
+  [ "$1" = quiet ] || echo "theme: $(theme_get NAME "$f")"
   return 0
 }
 
@@ -306,10 +402,11 @@ nni - settings and info for YnniOS / SGnniOS
   nni set KEY VALUE         change a setting and apply it now
   nni apply                 apply every setting again
   nni wallpaper [list|N|next]  show or pick the desktop wallpaper
+  nni theme [list|NAME|next|none]  pick a desktop theme (wallpaper + colours)
   nni update                upgrade the nni packages themselves
   nni version               version and codename
 
-Settings: HOSTNAME TIMEZONE KEYMAP CONSOLE_FONT XKB_LAYOUT WIFI_AUTO WALLPAPER SPLASH
+Settings: HOSTNAME TIMEZONE KEYMAP CONSOLE_FONT XKB_LAYOUT WIFI_AUTO WALLPAPER THEME SPLASH
 Services are managed with "svc" (svc help). Help for everything: handbook
 EOF
 }
@@ -335,6 +432,7 @@ case "$cmd" in
                  TIMEZONE) apply_timezone ;;
                  KEYMAP|CONSOLE_FONT) apply_console ;;
                  WALLPAPER) wallpaper_apply ;;
+                 THEME) theme_apply ;;
                  XKB_LAYOUT) [ -n "$DISPLAY" ] && apply_x ;;
                  WIFI_AUTO) rm -f "$R/etc/ynnios-wifi-auto" "$R/etc/sgnnios-wifi-auto" ;;
                esac
@@ -353,12 +451,27 @@ case "$cmd" in
                     cur=$(wall_pick) || cur=; n=0; i=0
                     for f in "$d"/*.png; do n=$((n+1)); [ "$f" = "$cur" ] && i=$n; done
                     WALLPAPER=$((i % n + 1))
-                    [ -w "$CONF" ] || [ -n "$R" ] && write_conf 2>/dev/null
+                    can_save && write_conf 2>/dev/null
                     wallpaper_apply ;;
                  *) WALLPAPER=$1; wall_pick >/dev/null || { echo "nni: unknown wallpaper '$1'" >&2; wall_list; exit 1; }
-                    [ -w "$CONF" ] || [ -n "$R" ] && write_conf 2>/dev/null
+                    can_save && write_conf 2>/dev/null
                     wallpaper_apply ;;
                esac ;;
+  theme)       load
+               case "${1:-list}" in
+                 list|-l|--list) theme_list; exit ;;
+                 none|off) THEME= ;;
+                 next) # the one after the current, round and round
+                    ids=$(theme_ids); [ -n "$ids" ] || { theme_list; exit 1; }
+                    cur=; [ -n "$THEME" ] && cur=$(theme_find "$THEME")
+                    n=0; i=0
+                    for id in $ids; do n=$((n+1)); [ "$id" = "$cur" ] && i=$n; done
+                    THEME=$(theme_find $((i % n + 1))) ;;
+                 *) THEME=$(theme_find "$*") || { echo "nni: unknown theme '$*'" >&2; theme_list >&2; exit 1; } ;;
+               esac
+               can_save && write_conf 2>/dev/null
+               if [ -n "$THEME" ]; then theme_apply
+               else echo "theme: none (colours come from niwmrc, nibarc and ~/.Xresources)"; fi ;;
   setup)       need_root setup; setup "$@" ;;
   os-release)  need_root os-release; write_os_release ;;
   update|upgrade) update_self ;;

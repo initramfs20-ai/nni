@@ -3,7 +3,7 @@
 #   make                                  build nni-splash
 #   make install DESTDIR=... DISTRO=ynnios    nni-base files for YnniOS
 #   make install DESTDIR=... DISTRO=sgnnios   nni-base files for SGnniOS
-#   make install-artwork DESTDIR=...      wallpapers, desktop menu entries, icewm theme, GRUB picture
+#   make install-artwork DESTDIR=...      wallpapers, themes, desktop menu entries, icewm theme, GRUB picture
 #   make check                            syntax-check every script
 
 VERSION  := $(shell cat VERSION)
@@ -25,7 +25,7 @@ install: all
 	@case "$(DISTRO)" in ynnios|sgnnios) ;; *) echo "DISTRO must be ynnios or sgnnios"; exit 1 ;; esac
 	install -d $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/lib/nni $(SHARE)/logos $(SHARE)/fastfetch
 	install -d $(DESTDIR)/etc/nni/services $(DESTDIR)/etc/profile.d
-	install -m755 src/bin/nni src/bin/svc src/bin/wifi src/bin/handbook $(DESTDIR)$(PREFIX)/bin/
+	install -m755 src/bin/nni src/bin/nni-theme src/bin/svc src/bin/wifi src/bin/handbook $(DESTDIR)$(PREFIX)/bin/
 	install -m755 out/nni-splash $(DESTDIR)$(PREFIX)/bin/
 	if [ "$(DISTRO)" = ynnios ]; then install -m755 src/bin/pol src/bin/ynnios-wallpaper $(DESTDIR)$(PREFIX)/bin/; fi
 	if [ "$(DISTRO)" = sgnnios ]; then install -m755 src/bin/spol $(DESTDIR)$(PREFIX)/bin/; fi
@@ -50,8 +50,9 @@ install: all
 
 install-artwork:
 	install -d $(DESTDIR)$(PREFIX)/share/backgrounds/nni $(DESTDIR)$(PREFIX)/share/icewm/themes/Ynni $(SHARE)/grub
-	install -d $(DESTDIR)$(PREFIX)/share/applications
+	install -d $(DESTDIR)$(PREFIX)/share/applications $(SHARE)/themes
 	install -m644 artwork/wallpapers/*.png $(DESTDIR)$(PREFIX)/share/backgrounds/nni/
+	install -m644 artwork/themes/*.theme $(SHARE)/themes/
 	install -m644 src/share/applications/*.desktop $(DESTDIR)$(PREFIX)/share/applications/
 	install -m644 artwork/icewm/Ynni/default.theme $(DESTDIR)$(PREFIX)/share/icewm/themes/Ynni/
 	install -m644 artwork/generated/grub-background.png $(SHARE)/grub/background.png

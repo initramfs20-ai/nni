@@ -16,6 +16,9 @@ and share the **nni core**:
 - **`nni`**: every system setting in one file, `/etc/nni.conf` (`nni set TIMEZONE ...`).
 - **`svc`**: a small service manager that supervises daemons and restarts them if they crash.
 - **`wifi`**: Wi-Fi in one command.
+- **`nni theme`**: four desktop themes named after the wallpapers (Debian Crimson,
+  Midnight Blue, Pastel Sunrise, Amber Dark), each colouring the window borders,
+  the bar and the terminal to match its wallpaper.
 - The busybox boot script, the chicken splash, the handbook, and NiWM, the desktop of YnniOS full.
 - Releases with a shared version and a chicken-breed codename. 1.0.0 is "Silkie".
 

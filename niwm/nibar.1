@@ -1,4 +1,4 @@
-.TH NIBAR 1 "2026" "nibar 0.3.0" "NiWM manual"
+.TH NIBAR 1 "2026" "nibar 0.4.0" "NiWM manual"
 .nh
 .SH NAME
 nibar \- vertical taskbar and applications menu for NiWM
@@ -131,6 +131,11 @@ an X core font; see
 .BR logo " yes|no"
 show the chicken on the menu button
 .TP
+.BR logo_color " auto|#rrggbb"
+the chicken's body;
+.B auto
+(the default) uses the text colour
+.TP
 .BI label " text"
 the menu button's text (default Apps)
 .TP
@@ -159,6 +164,18 @@ never show icons from these apps
 .TP
 .BI tray_show " class..."
 if given, show only icons from these apps
+.SS X resources
+Before nibarc, nibar reads the X resources (what
+.BR xrdb (1)
+loads). A resource
+.BI nibar. option : " value"
+works like that line in nibarc, so
+.B nibar.background: #102030
+is
+.BR "background #102030" .
+Desktop themes such as the nni family's
+.B nni theme
+colour nibar this way; nibarc and flags still win.
 .SS Example
 .RS 4
 .nf
