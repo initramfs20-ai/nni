@@ -286,13 +286,45 @@ theme_apply() { # [quiet]
     can_save && write_conf 2>/dev/null
   fi
   wallpaper_apply quiet
-  if [ -z "$R" ] && [ -n "$DISPLAY" ] && command -v xrdb >/dev/null 2>&1; then
+  [ "$1" = quiet ] || echo "theme: $(theme_get NAME "$f")"
+  if [ -z "$R" ] && [ -n "$DISPLAY" ]; then
+    if ! command -v xrdb >/dev/null 2>&1; then
+      [ "$1" = quiet ] || echo "nni: only the wallpaper changed: xrdb is missing, and the colours travel through it. Fix: pol install x11-xserver-utils" >&2
+      return 0
+    fi
     theme_resources "$f" | xrdb -nocpp -merge - 2>/dev/null
     # NiWM re-reads its colours, and tells nibar to do the same
     command -v niwmctl >/dev/null 2>&1 && niwmctl reload >/dev/null 2>&1
+    [ "$1" = quiet ] || theme_check "$f"
   fi
-  [ "$1" = quiet ] || echo "theme: $(theme_get NAME "$f")"
   return 0
+}
+
+# After applying a theme, say so plainly if the desktop didn't follow it.
+theme_check() {
+  command -v niwmctl >/dev/null 2>&1 || return 0
+  run=$(niwmctl version 2>/dev/null | sed -n 's/^niwm \([0-9.]*\).*/\1/p')   # the NiWM that is running
+  [ -n "$run" ] || return 0                                                  # another desktop: nothing to check
+  if ver_older "$run" 0.7.0; then
+    have=$(niwmctl --version 2>/dev/null | sed -n 's/^niwmctl \([0-9.]*\).*/\1/p')
+    if [ -n "$have" ] && ! ver_older "$have" 0.7.0; then
+      echo "nni: only the wallpaper changed: NiWM $have is installed, but the desktop is still running $run from before the upgrade. Restart it: Super+Shift+Q, then startx" >&2
+    else
+      echo "nni: only the wallpaper changed: NiWM $run is too old to follow themes (it needs 0.7.0). Fix: pol update && pol install niwm, then restart the desktop (Super+Shift+Q, then startx)" >&2
+    fi
+    return 0
+  fi
+  command -v timeout >/dev/null 2>&1 || return 0
+  want=$(theme_get ACCENT "$1" | tr -d '#' | tr 'A-F' 'a-f')
+  got=$(timeout 1 niwmctl subscribe 2>/dev/null | sed -n 's/^colors \([0-9a-f]*\) .*/\1/p' | head -n 1)
+  if [ -n "$want" ] && [ -n "$got" ] && [ "$want" != "$got" ]; then
+    echo "nni: NiWM kept its own border colour (#$got): a 'set focus_color' line in your niwmrc wins over the theme. Put a # in front of the 'set ..._color' lines in ~/.config/niwm/niwmrc (or /etc/niwm/niwmrc), then run nni theme again" >&2
+  fi
+  return 0
+}
+
+ver_older() { # A B -> true when version A is older than B
+  [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | head -n 1)" = "$1" ]
 }
 
 # ------------------------------------------------------------------ os-release
