@@ -1,0 +1,12 @@
+# nni theme: Midnight Blue - deep navy with the wallpaper's golden glow
+NAME="Midnight Blue"
+WALLPAPER="02_midnight_blue"
+ACCENT="#f0c043"
+BORDER="#24466e"
+URGENT="#fb5f4b"
+BAR_BG="#071a33"
+BAR_FG="#dbe6f3"
+LOGO="auto"
+TERM_BG="#06152a"
+TERM_FG="#dbe6f3"
+PALETTE="#0b2442 #fb5f4b #7ec699 #f0c043 #4f9ae0 #b48ee0 #5cc8d6 #dbe6f3 #2d4a6e #ff7f6e #9fe0b6 #ffd770 #7ab8f5 #cfaaf5 #85e0ea #ffffff"

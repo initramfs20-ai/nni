@@ -22,7 +22,8 @@ SUITE="${SUITE:-trixie}"
 ARCH="${ARCH:-amd64}"
 MIRROR="${MIRROR:-http://deb.debian.org/debian}"
 HARD_MODE="${HARD_MODE:-1}"                  # 1 = strip mkfs*/mke2fs; no grub, no installer
-WALLPAPER="${WALLPAPER:-1}"                  # default wallpaper (number or name, see nni wallpaper)
+THEME="${THEME:-debian_crimson}"             # desktop theme, wallpaper included (see nni theme list)
+WALLPAPER="${WALLPAPER:-}"                   # a different wallpaper than the theme's (see nni wallpaper)
 TIMEZONE="${TIMEZONE:-America/Argentina/Buenos_Aires}"   # any name under /usr/share/zoneinfo
 NO_SYSTEMD="${NO_SYSTEMD:-1}"                # 1 = purge systemd; busybox init runs everything
 SERVICES="${SERVICES:-syslogd}"              # services enabled at boot (svc list shows all)
@@ -196,13 +197,14 @@ build_edition() {
     echo "==> desktop setup (NiWM)"
     # NiWM's own defaults (/etc/niwm/niwmrc) start nibar, whose apps menu lists
     # the nni entries from nni-artwork next to every installed program
-    in_root "$R" nni set WALLPAPER "$WALLPAPER" >/dev/null
-    cp "$R/usr/share/nni/xresources" "$R/root/.Xresources"
-    # keyboard layout, Xresources and wallpaper from /etc/nni.conf, then the desktop;
-    # NiWM's messages (and nibar's) go to ~/.niwm.log
+    in_root "$R" nni set THEME "$THEME" >/dev/null
+    [ -n "$WALLPAPER" ] && in_root "$R" nni set WALLPAPER "$WALLPAPER" >/dev/null
+    # keyboard layout, the theme's colours (X resources) and wallpaper from
+    # /etc/nni.conf, then the desktop; NiWM's messages (and nibar's) go to ~/.niwm.log.
+    # ~/.Xresources is left for your own changes: nni loads it after the theme.
     printf '%s\n' 'nni apply --x' 'exec niwm-x11 2> "$HOME/.niwm.log"' > "$R/root/.xinitrc"
     # new users (adduser) inherit the desktop setup
-    cp -a "$R/root/.xinitrc" "$R/root/.Xresources" "$R/etc/skel/"
+    cp -a "$R/root/.xinitrc" "$R/etc/skel/"
     cat > "$R/etc/profile.d/ynnios-x.sh" <<'EOF'
 # start X once on tty1; if X exits you get a shell (no crash loop)
 if [ "$(tty)" = /dev/tty1 ] && [ ! -e "/tmp/.ynnios-x-$(id -u)" ]; then

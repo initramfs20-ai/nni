@@ -1,4 +1,5 @@
-! nni default xterm look: dark background so fastfetch labels stay readable
+! nni's default xterm look: dark, so fastfetch labels stay readable. A theme
+! (nni theme) replaces the colours; ~/.Xresources is loaded last and wins.
 XTerm*background: black
 XTerm*foreground: white
 XTerm*faceName: DejaVu Sans Mono

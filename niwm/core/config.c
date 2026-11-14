@@ -174,6 +174,36 @@ static void run_line(const char *src, int lineno, const char *line)
 		fprintf(stderr, "niwm: %s:%d: %s", src, lineno, err);
 }
 
+/* "niwm.focus_color: #3355ff" in the X resources (xrdb) is "set focus_color
+ * #3355ff", applied before niwmrc. Desktop themes set colours this way, and
+ * anything niwmrc sets itself still wins. */
+static void load_resources(void)
+{
+	char *db = wm.be->resources ? wm.be->resources() : NULL, *line, *save = NULL;
+	int n = 0;
+
+	if (!db)
+		return;
+	for (line = strtok_r(db, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
+		char cmd[600], *key, *val, *end;
+
+		n++;
+		if (strncmp(line, "niwm.", 5))
+			continue;
+		key = line + 5;
+		if (!(val = strchr(key, ':')))
+			continue;
+		for (end = val; end > key && (end[-1] == ' ' || end[-1] == '\t'); end--)
+			;
+		*end = '\0';
+		val++;
+		val += strspn(val, " \t");
+		snprintf(cmd, sizeof cmd, "set %s %s", key, val);
+		run_line("X resources", n, cmd);
+	}
+	free(db);
+}
+
 void config_load(void)
 {
 	char path[512], line[1024];
@@ -191,6 +221,7 @@ void config_load(void)
 	}
 
 	wm.loading = 1;
+	load_resources();
 	if ((f = open_config(path, sizeof path))) {
 		while (fgets(line, sizeof line, f))
 			run_line(path, ++lineno, line);

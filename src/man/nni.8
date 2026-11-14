@@ -17,7 +17,10 @@ nni \- settings, information and upkeep for YnniOS and SGnniOS
 .RB [ \-\-boot | \-\-x ]
 .br
 .B nni wallpaper
-.RB [ list | \fIN\fP | \fINAME\fP ]
+.RB [ list | \fIN\fP | \fINAME\fP | \fIFILE\fP | next ]
+.br
+.B nni theme
+.RB [ list | \fIN\fP | \fINAME\fP | next | none ]
 .br
 .B nni update
 .br
@@ -61,14 +64,52 @@ is used by the boot script.
 .B \-\-x
 is run from
 .I ~/.xinitrc
-before the desktop starts: it applies the keyboard layout, loads
-.I ~/.Xresources
-and sets the wallpaper, and works for normal users too.
+before the desktop starts: it applies the keyboard layout, loads the X
+resources (nni's defaults, then the theme's colours, then
+.IR ~/.Xresources ,
+so yours win) and sets the wallpaper. It works for normal users too.
 .TP
-.BR wallpaper " [" list | \fIN\fP | \fINAME\fP ]
+.BR wallpaper " [" list | \fIN\fP | \fINAME\fP | \fIFILE\fP | next ]
 Without an argument, list the installed wallpapers with the current one
 marked. With a number or name, switch to it (full edition, package
-nni\-artwork).
+nni\-artwork);
+.B next
+takes the one after the current. A full path to any picture works too.
+Changing the wallpaper keeps the theme's colours.
+.TP
+.BR theme " [" list | \fIN\fP | \fINAME\fP | next | none ]
+A theme is a wallpaper with colours to match: NiWM's window borders,
+nibar's background, text and accent, and the terminal's 16 colours. The
+four themes are named after the wallpapers: Debian Crimson, Midnight Blue,
+Pastel Sunrise and Amber Dark. Without an argument, list them with the
+current one marked. Pick one by number, name (any case, spaces or
+dashes) or id; it applies at once. NiWM and nibar change colour straight
+away; terminals opened after the change use the new colours.
+.B none
+leaves the colours to niwmrc, nibarc and
+.IR ~/.Xresources .
+Also available as
+.BR nni\-theme .
+.IP
+Your own themes go in
+.I /etc/nni/themes
+as
+.IR id .theme
+files. Copy one from
+.I /usr/share/nni/themes
+and change it: each line is
+.IB KEY =\(dq value \(dq\fR.\fP
+The keys are NAME, WALLPAPER (a number, name or file), ACCENT, BORDER
+and URGENT (NiWM's focused, normal and urgent borders), BAR_BG, BAR_FG
+and LOGO (nibar's background, text and chicken colour, or auto), TERM_BG
+and TERM_FG, and PALETTE, the terminal's 16 colours separated by spaces.
+A theme in /etc/nni/themes with the same id replaces ours.
+.IP
+Themes reach the programs as X resources, so a line in
+.I ~/.config/niwm/niwmrc
+or
+.I ~/.config/niwm/nibarc
+that sets a colour itself always wins over the theme.
 .TP
 .BR update " (also " upgrade )
 Upgrade the nni packages themselves: nni\-base (and nni\-artwork when
@@ -80,8 +121,8 @@ switches the overlay the ISO shipped with to the one on GitHub.
 .B version
 Name, version, codename and edition.
 .SH SETTINGS
-HOSTNAME, TIMEZONE, KEYMAP, CONSOLE_FONT, XKB_LAYOUT, WIFI_AUTO, WALLPAPER
-and SPLASH. See
+HOSTNAME, TIMEZONE, KEYMAP, CONSOLE_FONT, XKB_LAYOUT, WIFI_AUTO, WALLPAPER,
+THEME and SPLASH. See
 .BR nni.conf (5)
 for what each one does.
 .SH EXAMPLES
@@ -91,6 +132,8 @@ nni set HOSTNAME chick\-lab
 nni set XKB_LAYOUT latam
 nni set WIFI_AUTO yes
 nni wallpaper 2
+nni theme "Midnight Blue"
+nni\-theme next
 nni update
 .fi
 .SH FILES

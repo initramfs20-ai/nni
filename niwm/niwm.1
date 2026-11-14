@@ -1,4 +1,4 @@
-.TH NIWM 1 "2026" "niwm 0.6.0" "NiWM manual"
+.TH NIWM 1 "2026" "niwm 0.7.0" "NiWM manual"
 .nh
 .SH NAME
 niwm-x11, niwmctl \- lightweight tiling and floating window manager
@@ -35,6 +35,30 @@ The first file found is used:
 .B /etc/niwm/niwmrc
 .PP
 With none of them present, a built-in copy of the stock niwmrc is used.
+.SH X RESOURCES
+Before reading niwmrc, NiWM reads the X resources (what
+.BR xrdb (1)
+loads, usually from
+.IR ~/.Xresources ).
+A resource
+.BI niwm. key : " value"
+works like the line
+.BI "set " "key value"
+at the top of niwmrc, for example:
+.PP
+.RS 4
+.nf
+niwm.focus_color: #3355ff
+niwm.gap: 10
+.fi
+.RE
+.PP
+Desktop themes such as the nni family's
+.B nni theme
+use this to colour NiWM. Anything niwmrc sets itself still wins, which
+is why the stock niwmrc leaves its colour lines commented out. NiWM
+reads the resources again on
+.BR reload .
 .SH SETTING UP NIWMRC
 NiWM does not create
 .B ~/.config/niwm

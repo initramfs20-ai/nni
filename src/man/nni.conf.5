@@ -47,7 +47,14 @@ connects to the saved Wi\-Fi network at boot (see
 .TP
 .B WALLPAPER
 Desktop wallpaper, by number or name, as listed by
-.BR "nni wallpaper list" .
+.BR "nni wallpaper list" ,
+or the full path of any picture.
+.TP
+.B THEME
+Desktop theme: a wallpaper with colours to match for NiWM, nibar and the
+terminal, as listed by
+.BR "nni theme list" .
+Empty means no theme. Choosing a theme also sets WALLPAPER.
 .TP
 .B SPLASH
 .B yes
@@ -59,7 +66,8 @@ TIMEZONE="America/Argentina/Buenos_Aires"
 KEYMAP="la\-latin1"
 XKB_LAYOUT="latam"
 WIFI_AUTO="yes"
-WALLPAPER="2"
+WALLPAPER="02_midnight_blue"
+THEME="midnight_blue"
 SPLASH="yes"
 .fi
 .SH SEE ALSO

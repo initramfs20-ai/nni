@@ -307,9 +307,26 @@ static void x_sync(void)
 	raise_docks(); /* the core just restacked: put "above" bars back on top */
 }
 
+/* the RESOURCE_MANAGER property that xrdb fills */
+static char *x_resources(void)
+{
+	xcb_get_property_reply_t *r = xcb_get_property_reply(conn,
+		xcb_get_property(conn, 0, root, XCB_ATOM_RESOURCE_MANAGER, XCB_ATOM_STRING,
+		                 0, 1 << 18), NULL);
+	char *s = NULL;
+	int len;
+
+	if (r && (len = xcb_get_property_value_length(r)) > 0 && (s = malloc((size_t)len + 1))) {
+		memcpy(s, xcb_get_property_value(r), (size_t)len);
+		s[len] = '\0';
+	}
+	free(r);
+	return s;
+}
+
 static const backend x11_backend = {
 	"x11", x_configure, x_hide, x_raise, x_focus, x_set_border_color,
-	x_close, x_fullscreen, x_grab_keys, x_sync,
+	x_close, x_fullscreen, x_grab_keys, x_sync, x_resources,
 };
 
 /* The process behind a window, for swallowing. _NET_WM_PID is what most

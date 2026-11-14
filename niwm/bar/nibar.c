@@ -34,7 +34,7 @@
 #define SYSCONFDIR "/etc"
 #endif
 
-#define NIBAR_VERSION "0.3.0"
+#define NIBAR_VERSION "0.4.0"
 #define MAX_TASKS 64
 #define MAX_HITS 128
 #define PAD 10
@@ -54,6 +54,8 @@ static char tray_hide[MAX_FILTER][64], tray_show[MAX_FILTER][64];
 static int nhide, nshow;
 static uint32_t col_bg, col_fg;
 static int own_accent, own_border, own_urgent;   /* 0: follow niwm ("auto") */
+static int own_logo;                             /* 0: the chicken is foreground-coloured */
+static uint32_t my_logo;
 static uint32_t my_accent, my_border, my_urgent;
 
 /* niwm's border colours, used for "auto" */
@@ -235,7 +237,7 @@ static void conf_defaults(void)
 	nhide = nshow = 0;
 	col_bg = 0x161214;
 	col_fg = 0xe8dcd8;
-	own_accent = own_border = own_urgent = 0;
+	own_accent = own_border = own_urgent = own_logo = 0;
 }
 
 static void conf_err(const char *src, int ln, const char *fmt, ...)
@@ -345,6 +347,9 @@ static void conf_line(const char *src, int ln, char *line)
 	} else if (!strcmp(key, "border")) {
 		if (auto_or_color(val, &own_border, &my_border) < 0)
 			conf_err(src, ln, "border is auto or a colour like #3a3a3a");
+	} else if (!strcmp(key, "logo_color")) {
+		if (auto_or_color(val, &own_logo, &my_logo) < 0)
+			conf_err(src, ln, "logo_color is auto or a colour like #ffd640");
 	} else if (!strcmp(key, "urgent")) {
 		if (auto_or_color(val, &own_urgent, &my_urgent) < 0)
 			conf_err(src, ln, "urgent is auto or a colour like #e0a030");
@@ -468,6 +473,40 @@ static void apply_args(void)
 	}
 }
 
+/* "nibar.background: #102030" in the X resources (xrdb) works like that line
+ * in nibarc, applied before nibarc. Desktop themes set colours this way;
+ * nibarc and flags still win. */
+static void load_resources(void)
+{
+	xcb_get_property_reply_t *r;
+	xcb_window_t rw;
+	char *db, *line, *save = NULL;
+	int len, n = 0;
+
+	if (!conn)
+		return;
+	rw = xcb_setup_roots_iterator(xcb_get_setup(conn)).data->root;
+	r = xcb_get_property_reply(conn, xcb_get_property(conn, 0, rw, XCB_ATOM_RESOURCE_MANAGER,
+	                           XCB_ATOM_STRING, 0, 1 << 18), NULL);
+	if (!r || (len = xcb_get_property_value_length(r)) <= 0 || !(db = malloc((size_t)len + 1))) {
+		free(r);
+		return;
+	}
+	memcpy(db, xcb_get_property_value(r), (size_t)len);
+	db[len] = '\0';
+	free(r);
+	for (line = strtok_r(db, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
+		char *c;
+
+		n++;
+		if (strncmp(line, "nibar.", 6) || !(c = strchr(line, ':')))
+			continue;
+		*c = ' '; /* "nibar.width: 180" -> "width  180" */
+		conf_line("X resources", n, line + 6);
+	}
+	free(db);
+}
+
 static void load_config(void)
 {
 	char path[512], line[1024];
@@ -475,6 +514,7 @@ static void load_config(void)
 	FILE *f;
 
 	conf_defaults();
+	load_resources();
 	if ((f = open_conf(path, sizeof path))) {
 		while (fgets(line, sizeof line, f))
 			conf_line(path, ++ln, line);
@@ -649,7 +689,7 @@ static void draw_chicken(xcb_drawable_t d, int x, int y, int scale, uint32_t bg)
 
 			switch (chicken[r][c]) {
 			case 'r': col = col_accent; break;
-			case 'W': col = col_fg; break;
+			case 'W': col = own_logo ? my_logo : col_fg; break;
 			case 'e': col = bg; break;
 			case 'y': col = col_amber; break;
 			default: continue;
@@ -2455,7 +2495,6 @@ int main(int argc, char **argv)
 		if (!strcmp(argv[i], "-C") && i + 1 < argc)
 			conf_arg = argv[++i];
 	}
-	load_config();
 
 	setlocale(LC_TIME, "");
 	conn = xcb_connect(NULL, &scr_num);
@@ -2463,6 +2502,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "nibar: cannot open display\n");
 		return 1;
 	}
+	load_config(); /* after connecting: it reads the X resources too */
 	fcntl(xcb_get_file_descriptor(conn), F_SETFD, FD_CLOEXEC);
 
 	memset(&sa, 0, sizeof sa);
