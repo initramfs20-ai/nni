@@ -102,6 +102,7 @@ Architecture: all
 Maintainer: $MAINTAINER
 Installed-Size: $size
 Depends: nni-base (>= $VERSION)
+Recommends: xwallpaper
 Section: x11
 Priority: optional
 Homepage: $REPO_URL

@@ -177,25 +177,41 @@ wall_pick() { # prints the file for $WALLPAPER
   return 1
 }
 
+wall_painter() { # the program that can paint a wallpaper outside icewm, if any
+  for p in xwallpaper feh hsetroot; do command -v "$p" >/dev/null 2>&1 && { echo "$p"; return 0; }; done
+  return 1
+}
+
 wallpaper_apply() {
   pick=$(wall_pick) || { [ "$1" = quiet ] || echo "nni: unknown wallpaper '$WALLPAPER'" >&2; return 0; }
   home=${HOME:-/root}
   [ -n "$R" ] && home=$R/root
-  # icewm (the desktop before NiWM) keeps its own copy of the choice
-  if [ -d "$home/.icewm" ]; then
+  painter=$(wall_painter)
+  # icewm keeps its own copy of the choice. Its painter, icewmbg, reads it:
+  # under icewm, and as the last resort when nothing else can paint.
+  if [ -d "$home/.icewm" ] || { [ -z "$painter" ] && command -v icewmbg >/dev/null 2>&1; }; then
     pref="$home/.icewm/prefoverride"
-    touch "$pref" 2>/dev/null &&
+    mkdir -p "$home/.icewm" 2>/dev/null && touch "$pref" 2>/dev/null &&
     { grep -v '^DesktopBackground' "$pref" > "$pref.tmp" 2>/dev/null
       { echo "DesktopBackgroundImage=\"${pick#$R}\""; echo "DesktopBackgroundScaled=1"; } >> "$pref.tmp"
       mv "$pref.tmp" "$pref"; }
   fi
   # paint it now, when there is a desktop to paint on
   if [ -z "$R" ] && [ -n "$DISPLAY" ]; then
-    if command -v xwallpaper >/dev/null 2>&1; then xwallpaper --zoom "$pick" >/dev/null 2>&1
-    elif command -v feh >/dev/null 2>&1; then feh --no-fehbg --bg-fill "$pick" >/dev/null 2>&1
-    elif command -v hsetroot >/dev/null 2>&1; then hsetroot -fill "$pick" >/dev/null 2>&1
+    painted=no
+    case "$painter" in
+      xwallpaper) xwallpaper --zoom "$pick" >/dev/null 2>&1 && painted=yes ;;
+      feh)        feh --no-fehbg --bg-fill "$pick" >/dev/null 2>&1 && painted=yes ;;
+      hsetroot)   hsetroot -fill "$pick" >/dev/null 2>&1 && painted=yes ;;
+    esac
+    if command -v icewmbg >/dev/null 2>&1 && { [ "$painted" = no ] || pidof icewm >/dev/null 2>&1; }; then
+      icewmbg -r >/dev/null 2>&1 && painted=yes
     fi
-    command -v icewmbg >/dev/null 2>&1 && pidof icewm >/dev/null 2>&1 && icewmbg -r >/dev/null 2>&1
+    if [ "$painted" = no ]; then
+      # never claim a wallpaper that isn't on screen
+      [ "$1" = quiet ] || echo "nni: saved $(basename "$pick"), but nothing here can paint it. Fix: pol install xwallpaper" >&2
+      return 0
+    fi
   fi
   [ "$1" = quiet ] || echo "wallpaper: $(basename "$pick")"
   return 0
@@ -387,6 +403,9 @@ update_self() {
       pol update || die "could not refresh the package lists"
       pkgs=nni-base
       dpkg -s nni-artwork >/dev/null 2>&1 && pkgs="$pkgs nni-artwork"
+      dpkg -s niwm >/dev/null 2>&1 && pkgs="$pkgs niwm"
+      # a desktop needs something to paint the wallpaper with
+      if [ -d "$R/usr/share/backgrounds/nni" ] && ! wall_painter >/dev/null; then pkgs="$pkgs xwallpaper"; fi
       # shellcheck disable=SC2086
       exec pol install $pkgs ;;
   esac
