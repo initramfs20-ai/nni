@@ -6,7 +6,7 @@ inherit toolchain-funcs
 DESCRIPTION="NiWM: lightweight tiling and floating window manager, with the nibar taskbar"
 HOMEPAGE="https://github.com/initramfs20-ai/nni"
 # NiWM has its own version; its source rides along with the nni release
-SRC_URI="https://github.com/initramfs20-ai/nni/releases/download/v1.1.0/niwm-${PV}.tar.gz"
+SRC_URI="https://github.com/initramfs20-ai/nni/releases/download/v1.2.0/niwm-${PV}.tar.gz"
 S="${WORKDIR}/niwm-${PV}"
 
 LICENSE="MIT"

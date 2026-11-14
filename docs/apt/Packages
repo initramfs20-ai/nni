@@ -8,10 +8,10 @@ Recommends: xfonts-base, x11-xserver-utils
 Suggests: x-terminal-emulator
 Provides: x-window-manager
 Filename: pool/niwm_0.6.0_amd64.deb
-Size: 67552
-MD5sum: ea33812ef850b6d8bcf8e46938a40fbe
-SHA1: a0219eee1a560b15054b750e416568d785f40ba1
-SHA256: 0f21caed6212e1796dc2aa9a964d4cf80fca46a7b45eab8bdc92978cc767e538
+Size: 67556
+MD5sum: 72d4d91c48b655ffb31ca6e227f4a640
+SHA1: 64e26de56665bb740512d6e13eb148e5ab2f33fd
+SHA256: 5a87cc9e35de22ccc53eab128939effc6b173cb4cd0100b431362b679809977b
 Section: x11
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
@@ -23,35 +23,37 @@ Description: lightweight tiling and floating window manager, with nibar
  system tray. Configure it in ~/.config/niwm/niwmrc; see man niwm.
 
 Package: nni-artwork
-Version: 1.1.0
+Version: 1.2.0
 Architecture: all
 Maintainer: nni project <nni@invalid>
-Installed-Size: 4452
-Depends: nni-base (>= 1.1.0)
-Filename: pool/nni-artwork_1.1.0_all.deb
-Size: 4503628
-MD5sum: d45e316bced20aae4989d483259ef07d
-SHA1: 1fbbebac31f2566de5ac1edf4f2eb097e786f832
-SHA256: ece0f7ca3044790579ad7e66b13633bc277d6ca3347017386ec837e3de6bd461
+Installed-Size: 4484
+Depends: nni-base (>= 1.2.0)
+Filename: pool/nni-artwork_1.2.0_all.deb
+Size: 4504408
+MD5sum: f7fd12ea376daed6ec43896b601dd977
+SHA1: 4299795307e4be6a39cfc9aca73f22aecbdc8fd9
+SHA256: 032b52fbeebc74fb1c0bdaa48f332e5af32c5ae46ca04a41f7e41d16fc17302a
 Section: x11
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
 Description: wallpapers and desktop theme for the nni family
- The four YnniOS wallpapers, the Ynni icewm theme and the GRUB menu
- background. Pick a wallpaper with: nni wallpaper list
+ The YnniOS wallpapers, the nni entries in the desktop's apps menu
+ (handbook, settings, services, next wallpaper, reboot, power off), the
+ GRUB menu background and the Ynni icewm theme. Pick a wallpaper with:
+ nni wallpaper list
 
 Package: nni-base
-Version: 1.1.0
+Version: 1.2.0
 Architecture: amd64
 Maintainer: nni project <nni@invalid>
 Installed-Size: 1580
 Depends: busybox-static | busybox, fastfetch
 Recommends: wpasupplicant, iw
-Filename: pool/nni-base_1.1.0_amd64.deb
-Size: 403184
-MD5sum: 1abbc2cd7dd6c31766678e5653bd6fd4
-SHA1: 74b2a827793895a9276af85aedb9a6b09ba28764
-SHA256: 7d162b9ba0a56fe064862af8d2eabda037944a31023b2ea62b831366212a7cf1
+Filename: pool/nni-base_1.2.0_amd64.deb
+Size: 404188
+MD5sum: 85b8da181a58178cf6043e378f23e2af
+SHA1: 730440905f79bffd0e2b5aabaa659b71b5d8cb52
+SHA256: 399383145c4782d4b1db9ee21afabc68fe09d19b4071b86fae37b0d9538c0798
 Section: admin
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
