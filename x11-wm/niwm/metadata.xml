@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<longdescription>
+		NiWM tiles or floats windows on nine tags per monitor, in the spirit
+		of awesome but without Lua or a widget toolkit, in well under 1 MB of
+		memory. It comes with a drop-down scratchpad, window swallowing,
+		multiple monitors, and nibar, a vertical taskbar with an applications
+		menu and a system tray.
+	</longdescription>
+</pkgmetadata>
