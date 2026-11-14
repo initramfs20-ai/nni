@@ -1,5 +1,5 @@
 Package: niwm
-Version: 0.6.0
+Version: 0.7.0
 Architecture: amd64
 Maintainer: nni project <nni@invalid>
 Installed-Size: 244
@@ -7,11 +7,11 @@ Depends: libc6 (>= 2.34), libxcb-randr0 (>= 1.12), libxcb-res0 (>= 1.10), libxcb
 Recommends: xfonts-base, x11-xserver-utils
 Suggests: x-terminal-emulator
 Provides: x-window-manager
-Filename: pool/niwm_0.6.0_amd64.deb
-Size: 67556
-MD5sum: 72d4d91c48b655ffb31ca6e227f4a640
-SHA1: 64e26de56665bb740512d6e13eb148e5ab2f33fd
-SHA256: 5a87cc9e35de22ccc53eab128939effc6b173cb4cd0100b431362b679809977b
+Filename: pool/niwm_0.7.0_amd64.deb
+Size: 68808
+MD5sum: 242a365d7235a9efb7e61939c81e91eb
+SHA1: 858cd29653c80aa0471694574856b39ad5aea062
+SHA256: 244ab1ea8762fe805b4a0e44f2a2cd28a3b0cfb7cc1da64f2096324b558897ae
 Section: x11
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
@@ -23,37 +23,39 @@ Description: lightweight tiling and floating window manager, with nibar
  system tray. Configure it in ~/.config/niwm/niwmrc; see man niwm.
 
 Package: nni-artwork
-Version: 1.2.0
+Version: 1.3.0
 Architecture: all
 Maintainer: nni project <nni@invalid>
-Installed-Size: 4484
-Depends: nni-base (>= 1.2.0)
-Filename: pool/nni-artwork_1.2.0_all.deb
-Size: 4504408
-MD5sum: f7fd12ea376daed6ec43896b601dd977
-SHA1: 4299795307e4be6a39cfc9aca73f22aecbdc8fd9
-SHA256: 032b52fbeebc74fb1c0bdaa48f332e5af32c5ae46ca04a41f7e41d16fc17302a
+Installed-Size: 4504
+Depends: nni-base (>= 1.3.0)
+Recommends: xwallpaper
+Filename: pool/nni-artwork_1.3.0_all.deb
+Size: 4505312
+MD5sum: 2f1c554f3bdfe1760e941760bfa8b34b
+SHA1: a2fd3e34e0ff2654c9a613c68f8c74d1470589fd
+SHA256: e2b82d2f8abe23c0c7e2e8f8d4ff58057a5d652b056f2178c594f31edc345454
 Section: x11
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
 Description: wallpapers and desktop theme for the nni family
- The YnniOS wallpapers, the nni entries in the desktop's apps menu
+ The YnniOS wallpapers and the desktop themes made from them (nni theme
+ list), the nni entries in the desktop's apps menu
  (handbook, settings, services, next wallpaper, reboot, power off), the
  GRUB menu background and the Ynni icewm theme. Pick a wallpaper with:
  nni wallpaper list
 
 Package: nni-base
-Version: 1.2.0
+Version: 1.3.0
 Architecture: amd64
 Maintainer: nni project <nni@invalid>
-Installed-Size: 1580
+Installed-Size: 1588
 Depends: busybox-static | busybox, fastfetch
 Recommends: wpasupplicant, iw
-Filename: pool/nni-base_1.2.0_amd64.deb
-Size: 404188
-MD5sum: 85b8da181a58178cf6043e378f23e2af
-SHA1: 730440905f79bffd0e2b5aabaa659b71b5d8cb52
-SHA256: 399383145c4782d4b1db9ee21afabc68fe09d19b4071b86fae37b0d9538c0798
+Filename: pool/nni-base_1.3.0_amd64.deb
+Size: 407016
+MD5sum: f2bf4a7a0044d2fb12f556f58c2235b3
+SHA1: ba9cf71216857ca8ef1eacf3fe6211bce5428698
+SHA256: c44da40ff335113a9b96388e8994fc9c3889411e7c30387fa722338d13fde39b
 Section: admin
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
