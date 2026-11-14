@@ -8,7 +8,7 @@ The nni family started when a toy chicken keymashed a keyboard and typed "Ynni".
 | Editions | minimal (servers, homelabs, anything on a cable), full (NiWM desktop, drivers) | one, source-based |
 | Package tool | `pol`, the Package Optimized Layer over apt | `spol`, the Sourced Portage-Oriented Linker |
 | fastfetch logo | the chicken | the buff chicken shouting "SPOL!!" |
-| Boot logo | chicken splash | chicken splash and chickens instead of tux in the kernel |
+| Boot logo | chicken splash, and chickens in the kernel with the YnniOS kernel | chicken splash and chickens instead of tux in the kernel |
 
 Both run busybox as PID 1, have no systemd, are deliberately hard to install,
 and share the **nni core**:
@@ -70,16 +70,22 @@ On a Debian/Ubuntu/Pop!_OS PC:
 ```sh
 sudo apt install debootstrap squashfs-tools xorriso mtools grub-pc-bin grub-efi-amd64-bin \
                  build-essential dpkg-dev qemu-system-x86 ovmf wget
+sudo bash builders/ynnios/build-kernel.sh           # optional, once: the chicken kernel (2-3 hours)
 sudo bash builders/ynnios/build-iso.sh all          # ynnios-minimal.iso + ynnios-full.iso
 sudo bash builders/sgnnios/build-sgnnios.sh         # sgnnios.iso
 ```
+
+`build-kernel.sh` builds Debian's own kernel again with the boot logo turned on and the
+chicken as the picture, into `dist/kernel/`. `build-iso.sh` uses that kernel when it is
+there and Debian's kernel otherwise. Run it again when Debian updates its kernel; it only
+rebuilds when the source has changed.
 
 Useful options are set as environment variables in front of the command:
 
 - `HARD_MODE=0` keeps the install tools on the ISO.
 - `TIMEZONE=...` sets the default time zone.
 - `SERVICES="syslogd ntpd"` chooses which services start at boot.
-- `CHICKEN_KERNEL=0` uses the prebuilt Gentoo kernel, which is much faster to build but shows tux at boot.
+- `CHICKEN_KERNEL=0` uses the prebuilt kernel (Gentoo's for SGnniOS, Debian's for YnniOS), which is much faster to build but has no chickens at boot.
 
 ## Releasing and publishing
 

@@ -25,6 +25,11 @@ HARD_MODE="${HARD_MODE:-1}"                  # 1 = strip mkfs*/mke2fs; no grub, 
 THEME="${THEME:-debian_crimson}"             # desktop theme, wallpaper included (see nni theme list)
 WALLPAPER="${WALLPAPER:-}"                   # a different wallpaper than the theme's (see nni wallpaper)
 TIMEZONE="${TIMEZONE:-America/Argentina/Buenos_Aires}"   # any name under /usr/share/zoneinfo
+# The kernel with chickens instead of the (missing) boot logo, built once by
+# builders/ynnios/build-kernel.sh into dist/kernel:
+#   auto = use it when it has been built, otherwise Debian's kernel
+#   1    = insist on it        0 = always Debian's kernel
+CHICKEN_KERNEL="${CHICKEN_KERNEL:-auto}"
 NO_SYSTEMD="${NO_SYSTEMD:-1}"                # 1 = purge systemd; busybox init runs everything
 SERVICES="${SERVICES:-syslogd}"              # services enabled at boot (svc list shows all)
 WORK="${WORK:-/var/tmp/ynnios-build}"          # big scratch folder (never inside the repo)
@@ -37,7 +42,16 @@ BASE="$WORK/base"
 DEBS="$WORK/debs"
 EDITIONS="${1:-all}"; [ "$EDITIONS" = all ] && EDITIONS="minimal full"
 
-COMMON_PKGS="linux-image-$ARCH live-boot initramfs-tools busybox-static kmod fastfetch tzdata ca-certificates"
+KERNEL_DIR="${KERNEL_DIR:-$TOP/dist/kernel}"
+KERNEL_DEB=
+if [ "$CHICKEN_KERNEL" != 0 ]; then
+  KERNEL_DEB=$(ls "$KERNEL_DIR"/linux-image-*+ynnios_*_"$ARCH".deb 2>/dev/null | sort -V | tail -1 || true)
+  if [ -z "$KERNEL_DEB" ] && [ "$CHICKEN_KERNEL" = 1 ]; then
+    echo "CHICKEN_KERNEL=1, but $KERNEL_DIR has no kernel: run  sudo bash builders/ynnios/build-kernel.sh  first"; exit 1
+  fi
+fi
+if [ -n "$KERNEL_DEB" ]; then KERNEL_PKG=; else KERNEL_PKG="linux-image-$ARCH"; fi
+COMMON_PKGS="$KERNEL_PKG live-boot initramfs-tools busybox-static kmod fastfetch tzdata ca-certificates"
 # Full edition: desktop + broad driver/firmware coverage. Add more with EXTRA_FULL_PKGS.
 FULL_PKGS="udev xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-all \
 xinit xauth x11-xserver-utils x11-xkb-utils xwallpaper xterm fonts-dejavu-core libgl1-mesa-dri \
@@ -137,6 +151,17 @@ EOF
   apt_in "$BASE" update
   # shellcheck disable=SC2086
   apt_in "$BASE" install -y --no-install-recommends $COMMON_PKGS
+  if [ -n "$KERNEL_DEB" ]; then
+    # after initramfs-tools and live-boot, so installing it builds the initrd
+    echo "==> kernel: $(basename "$KERNEL_DEB") (chicken boot logo)"
+    mkdir -p "$BASE/tmp/nni"
+    cp "$KERNEL_DEB" "$BASE/tmp/nni/"
+    apt_in "$BASE" install -y --no-install-recommends "/tmp/nni/$(basename "$KERNEL_DEB")"
+    ls "$BASE"/boot/initrd.img-*+ynnios >/dev/null 2>&1 ||
+      { echo "the chicken kernel installed, but no initrd was made for it"; exit 1; }
+  else
+    echo "==> kernel: Debian's $KERNEL_PKG (no boot logo; build-kernel.sh makes the chicken one)"
+  fi
 
   echo "==> busybox as PID 1 + the nni core"
   mkdir -p "$BASE/opt/bb/bin"
@@ -144,6 +169,7 @@ EOF
   chroot "$BASE" /bin/busybox --install -s /opt/bb/bin     # fills gaps (fdisk, mkdosfs, etc.)
   mkdir -p "$BASE/tmp/nni"
   cp "$DEBS"/*.deb "$BASE/tmp/nni/"
+  rm -f "$BASE"/tmp/nni/linux-image-*.deb
   apt_in "$BASE" install -y "/tmp/nni/nni-base_${VERSION}_amd64.deb"
   umount_chroot "$BASE"
 
