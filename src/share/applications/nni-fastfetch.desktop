@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=System info (fastfetch)
+Comment=This machine, with the chicken
+Exec=sh -c "fastfetch; echo; echo Press Enter to close; read x"
+Terminal=true
+Categories=System;

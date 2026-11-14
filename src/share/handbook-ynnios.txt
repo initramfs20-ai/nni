@@ -12,8 +12,8 @@ YnniOS is built with debootstrap from Debian. Busybox is PID 1 (the
 init program) and supplies many small tools. There are two editions:
 
   minimal   console only. Busybox shell on tty1 and tty2.
-  full      adds Xorg, the icewm desktop, wireless/graphics drivers
-            and firmware, sound tools and four wallpapers.
+  full      adds Xorg, the NiWM desktop, wireless/graphics drivers
+            and firmware, sound tools and the wallpapers.
 
 Check which one you have:   fastfetch      (the chicken tells you)
                             nni            (version, codename, settings)
@@ -145,15 +145,32 @@ The "wifi" shortcut
 ---------------------------------------------------------------------
 5. THE FULL EDITION DESKTOP
 ---------------------------------------------------------------------
-  * icewm starts automatically on tty1. If X ever exits you get a
-    shell; type "startx" to try again.
-  * Right-click the desktop or use the start menu for Terminal,
-    Handbook, Fastfetch and Wallpapers.
+  * NiWM, the nni family's own window manager, starts automatically
+    on tty1. If X ever exits you get a shell; type "startx" to try
+    again. Its full manual: man niwm, man nibar.
+  * Windows tile on their own: the newest is the big "master" on the
+    left, the rest stack on the right. Super is the key with the
+    window logo. The keys to start with:
+        Super+Enter         terminal
+        Super+P             the apps menu (or click the chicken)
+        Super+S             drop-down scratchpad terminal
+        Super+J / Super+K   focus the next / previous window
+        Super+1 ... 9       switch tags (like virtual desktops)
+        Super+Shift+1 ... 9 send the window to that tag
+        Super+Space         next layout: tile, monocle, grid, float
+        Super+F             fullscreen
+        Super+Shift+C       close the window
+        Super+mouse drag    move a window (right button: resize)
+        Super+Ctrl+R        reload the settings
+  * nibar, the bar on the left, has the apps menu, the tags, the
+    window list, the tray, battery, network and the clock. The menu's
+    "System" and "Settings" groups hold the Handbook, System info,
+    Settings, Services, Next wallpaper, Reboot and Power off.
   * Wallpapers (command line):
         nni wallpaper list
         nni wallpaper 3
-    The four wallpapers are in /usr/share/backgrounds/nni (package
-    nni-artwork). The "Ynni" icewm theme uses the same colours.
+        nni wallpaper next
+    They are in /usr/share/backgrounds/nni (package nni-artwork).
   * Drivers: most graphics (Intel, AMD, NVIDIA via nouveau, VESA,
     fbdev), input, Wi-Fi and common firmware are preinstalled.
   * Black screen or broken X? Reboot and choose "safe graphics".
@@ -285,12 +302,10 @@ the /run fix. Rebuild with the current build-iso.sh.
   Time zone     nni set TIMEZONE <Region>/<City>   (list: ls /usr/share/zoneinfo)
   Man pages     pol install man-db manpages   (reinstall a package to get
                 its pages if it was installed without them)
-  Start menu    ~/.icewm/menu lists programs. The line
-                  menuprogreload Applications - 0 icewm-menu-fdo
-                keeps an "Applications" submenu in sync with installed
-                programs. Add custom entries as:  prog "Name" - command
-  Wallpaper     nni wallpaper N. It is saved in ~/.icewm/prefoverride,
-                which overrides the icewm theme.
+  Apps menu     nibar lists every installed program by itself, from
+                the .desktop files in /usr/share/applications. Add your
+                own entry in ~/.local/share/applications (man nibar).
+  Wallpaper     nni wallpaper N, or nni wallpaper next.
 
   No systemd  YnniOS has no systemd. There is no systemctl or journalctl.
                 Power:   poweroff   reboot   halt      (busybox applets)
@@ -358,11 +373,25 @@ prefer an easier editor: pol install nano
   entirely (less safe). pol needs root, so write: doas pol install <pkg>
 
 10.4 Configuring the desktop (full edition)
-  Each user has their own settings in ~/.icewm and ~/.xinitrc. New
-  users get a copy automatically on builds that fill /etc/skel.
+  The desktop is NiWM. Its settings are /etc/niwm/niwmrc (NiWM) and
+  /etc/niwm/nibarc (the bar). To change them for one user, copy them
+  first, then edit the copies:
+      mkdir -p ~/.config/niwm
+      cp /etc/niwm/niwmrc /etc/niwm/nibarc ~/.config/niwm/
+  Every line of niwmrc is a command you can also try live, e.g.
+      niwmctl set gap 10
+      niwmctl set focus_color #3355ff     (the bar's accent follows it)
+  Super+Ctrl+R reloads both files. man niwm and man nibar list every
+  setting; the most asked-for are:
+      set terminal lxterminal            which terminal Super+Enter opens
+      bind mod+b spawn midori            your own keys
+      autostart nm-applet                programs to start with the desktop
+      rule class=mpv float               per-program rules
+      layer beside        (nibarc)       fullscreen windows leave the bar
+  New users get ~/.xinitrc automatically on builds that fill /etc/skel.
   Otherwise copy it yourself:
-      cp -r /root/.icewm /root/.xinitrc /home/alice/
-      chown -R alice:alice /home/alice/.icewm /home/alice/.xinitrc
+      cp /root/.xinitrc /root/.Xresources /home/alice/
+      chown alice:alice /home/alice/.xinitrc /home/alice/.Xresources
   Running X as a normal user (there is no systemd-logind):
       pol install xserver-xorg-legacy
       If X still refuses to start, put   allowed_users=anybody   in
@@ -375,29 +404,30 @@ prefer an easier editor: pol install nano
   ~/.xinitrc runs before the desktop. Keep "nni apply --x" in it (that
   applies the layout and wallpaper), for example:
       nni apply --x
-      xset s off -dpms &        no screen blanking
-      exec icewm-session        must be the LAST line
+      xset s off -dpms &                  no screen blanking
+      exec niwm-x11 2> "$HOME/.niwm.log"  must be the LAST line
   Screen resolution:     xrandr                    lists the outputs
                          xrandr --output <name> --mode 1366x768
                          put the command in ~/.xinitrc to keep it
-  Autostart programs:    make an executable ~/.icewm/startup script with
-                         one command per line, each ending in &. If you
-                         create this file, also start the wallpaper and
-                         tray in it, because icewm may stop starting
-                         them for you:
-                             icewmbg &
-                             icewmtray &
-  Keyboard shortcuts:   ~/.icewm/keys, one per line, for example
-                             key "Ctrl+Alt+t" xterm
-  Start menu:            ~/.icewm/menu (see section 9)
-  Theme:                 the default is Ynni. Others: ls /usr/share/icewm/themes,
-                         then in ~/.icewm/preferences set
-                             Theme="<Name>/default.theme"
-                         The wallpaper in ~/.icewm/prefoverride still
-                         wins over the theme.
+  Two monitors:          each gets its own tags. Super+. and Super+,
+                         move between them (add Shift to take the
+                         window). For a bar on the second one, add
+                             autostart nibar -m 2
+                         to your niwmrc. See MONITORS in man niwm.
+  Something not working: NiWM and nibar write their complaints (a
+                         typo in niwmrc, a tray icon's name) to
+                         ~/.niwm.log.
+  Prefer icewm?          pol install icewm, then make the last line
+                         of ~/.xinitrc:  exec icewm-session
+                         The "Ynni" icewm theme is still installed.
   Wallpaper:             nni wallpaper list ; nni wallpaper 2
-  All options:           pol install man-db icewm-common
-                         man icewm-preferences
+
+  Moving an older full-edition install (YnniOS 1.1 and before, which
+  came with icewm) over to NiWM:
+      pol update && pol install niwm xwallpaper nni-artwork
+      sed -i 's/^exec icewm-session.*/exec niwm-x11 2> "$HOME\/.niwm.log"/' ~/.xinitrc
+  then log out of X (or reboot). icewm can stay installed; remove it
+  with  pol remove icewm  once you're happy.
 
 10.5 Connecting to the network automatically at boot
   Easiest:      wifi connect "SSID"   then   wifi auto on

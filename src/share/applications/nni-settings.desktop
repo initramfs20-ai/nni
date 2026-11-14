@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Settings (nni list)
+Comment=Every system setting; change one with: nni set KEY VALUE
+Exec=sh -c "nni list; echo; echo Change one with: nni set KEY VALUE; echo Press Enter to close; read x"
+Terminal=true
+Categories=Settings;

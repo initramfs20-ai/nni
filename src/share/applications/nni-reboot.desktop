@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Reboot
+Comment=Restart the computer
+Exec=reboot
+Terminal=false
+Categories=System;

@@ -227,7 +227,7 @@ isos() {
   entries=; upload=
   for spec in \
     "ynnios*minimal*.iso|ynnios-$VERSION-minimal-amd64.iso|YnniOS minimal|Console only. For servers, homelabs, routers and anything with a network cable." \
-    "ynnios*full*.iso|ynnios-$VERSION-full-amd64.iso|YnniOS full|The icewm desktop with drivers and Wi-Fi firmware. The everyday edition." \
+    "ynnios*full*.iso|ynnios-$VERSION-full-amd64.iso|YnniOS full|The NiWM desktop with drivers and Wi-Fi firmware. The everyday edition." \
     "sgnnios*.iso|sgnnios-$VERSION-amd64.iso|SGnniOS|Source-Genius: Gentoo underneath, compiled on your machine, chickens at boot."
   do
     pattern=$(echo "$spec" | cut -d'|' -f1); name=$(echo "$spec" | cut -d'|' -f2)

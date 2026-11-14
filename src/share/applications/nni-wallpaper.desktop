@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Next wallpaper
+Comment=Switch to the next nni wallpaper
+Exec=nni wallpaper next
+Terminal=false
+Categories=Settings;

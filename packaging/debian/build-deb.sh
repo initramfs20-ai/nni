@@ -1,7 +1,7 @@
 #!/bin/sh
 # Build the YnniOS packages from this repo:
 #   nni-base_VERSION_amd64.deb     the shared core (scripts, boot, splash, logos)
-#   nni-artwork_VERSION_all.deb    wallpapers, icewm theme, GRUB picture (full edition)
+#   nni-artwork_VERSION_all.deb    wallpapers, menu entries, GRUB picture (full edition)
 #   niwm_NIWMVERSION_amd64.deb     the NiWM window manager and nibar (from niwm/)
 #
 #   sh packaging/debian/build-deb.sh [OUTDIR] [REPO_URL]
@@ -106,8 +106,10 @@ Section: x11
 Priority: optional
 Homepage: $REPO_URL
 Description: wallpapers and desktop theme for the nni family
- The four YnniOS wallpapers, the Ynni icewm theme and the GRUB menu
- background. Pick a wallpaper with: nni wallpaper list
+ The YnniOS wallpapers, the nni entries in the desktop's apps menu
+ (handbook, settings, services, next wallpaper, reboot, power off), the
+ GRUB menu background and the Ynni icewm theme. Pick a wallpaper with:
+ nni wallpaper list
 EOF
 ( cd "$A" && find . -path ./DEBIAN -prune -o -type f -print | sed 's|^\./||' | sort | xargs md5sum ) > "$A/DEBIAN/md5sums"
 dpkg-deb --root-owner-group -Zxz --build "$A" "$OUT/nni-artwork_${VERSION}_all.deb" >/dev/null

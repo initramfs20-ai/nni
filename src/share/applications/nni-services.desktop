@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Services (svc list)
+Comment=Background services
+Exec=sh -c "svc list; echo; echo Press Enter to close; read x"
+Terminal=true
+Categories=System;

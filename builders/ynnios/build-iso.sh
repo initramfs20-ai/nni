@@ -2,13 +2,14 @@
 # YnniOS builder: debootstrap (Debian) + busybox as PID 1 + the nni core. No installer.
 #
 #   sudo bash builders/ynnios/build-iso.sh minimal    # -> ynnios-minimal.iso
-#   sudo bash builders/ynnios/build-iso.sh full       # -> ynnios-full.iso  (Xorg + icewm + drivers)
+#   sudo bash builders/ynnios/build-iso.sh full       # -> ynnios-full.iso  (Xorg + NiWM + drivers)
 #   sudo bash builders/ynnios/build-iso.sh all        # both (default)
 #
 # Run it from anywhere inside the nni repo; the ISOs land in the folder you run it from.
 # The YnniOS-specific parts (nni, svc, wifi, pol, boot script, logos, splash) come from
-# the nni-base package, built from this repo on the fly; wallpapers and the desktop
-# theme come from nni-artwork (full edition).
+# the nni-base package, built from this repo on the fly; the full edition adds the
+# NiWM desktop (the niwm package, built the same way) and nni-artwork (wallpapers,
+# apps-menu entries).
 #
 # Host deps: debootstrap squashfs-tools xorriso mtools grub-pc-bin grub-efi-amd64-bin
 #            build-essential dpkg-dev     (Debian 13 "trixie" or newer is the target)
@@ -38,7 +39,7 @@ EDITIONS="${1:-all}"; [ "$EDITIONS" = all ] && EDITIONS="minimal full"
 COMMON_PKGS="linux-image-$ARCH live-boot initramfs-tools busybox-static kmod fastfetch tzdata ca-certificates"
 # Full edition: desktop + broad driver/firmware coverage. Add more with EXTRA_FULL_PKGS.
 FULL_PKGS="udev xserver-xorg-core xserver-xorg-input-all xserver-xorg-video-all \
-xinit xauth x11-xserver-utils x11-xkb-utils icewm xterm fonts-dejavu-core libgl1-mesa-dri \
+xinit xauth x11-xserver-utils x11-xkb-utils xwallpaper xterm fonts-dejavu-core libgl1-mesa-dri \
 firmware-linux firmware-iwlwifi firmware-realtek firmware-atheros firmware-brcm80211 \
 firmware-misc-nonfree firmware-amd-graphics amd64-microcode \
 wpasupplicant iw wireless-tools rfkill pciutils usbutils alsa-utils man-db manpages ${EXTRA_FULL_PKGS:-}"
@@ -189,36 +190,19 @@ build_edition() {
     apt_in "$R" update
     # shellcheck disable=SC2086
     apt_in "$R" install -y --no-install-recommends $FULL_PKGS
-    apt_in "$R" install -y "/tmp/nni/nni-artwork_${VERSION}_all.deb"
+    niwm_deb=$(cd "$DEBS" && ls niwm_*_amd64.deb | tail -n 1)
+    apt_in "$R" install -y "/tmp/nni/nni-artwork_${VERSION}_all.deb" "/tmp/nni/$niwm_deb"
 
-    echo "==> desktop setup"
-    mkdir -p "$R/root/.icewm"
-    cat > "$R/root/.icewm/preferences" <<'EOF'
-Theme="Ynni/default.theme"
-EOF
+    echo "==> desktop setup (NiWM)"
+    # NiWM's own defaults (/etc/niwm/niwmrc) start nibar, whose apps menu lists
+    # the nni entries from nni-artwork next to every installed program
     in_root "$R" nni set WALLPAPER "$WALLPAPER" >/dev/null
-    {
-      echo 'prog Terminal - xterm'
-      echo 'prog Handbook - xterm -e handbook'
-      echo 'prog Fastfetch - xterm -hold -e fastfetch'
-      echo 'prog "Settings (nni)" - xterm -hold -e nni list'
-      echo 'prog "Services (svc)" - xterm -hold -e svc list'
-      echo 'menu Wallpapers - {'
-      n=1
-      for f in "$R"/usr/share/backgrounds/nni/*.png; do
-        label=$(basename "$f" .png | sed 's/^[0-9]*_//; s/_/ /g')
-        echo "  prog \"$label\" - nni wallpaper $n"
-        n=$((n+1))
-      done
-      echo '}'
-      echo 'menuprogreload Applications - 0 icewm-menu-fdo'   # auto-lists installed apps
-      echo 'prog "Restart icewm" - icewm --restart'
-    } > "$R/root/.icewm/menu"
     cp "$R/usr/share/nni/xresources" "$R/root/.Xresources"
-    # keyboard layout, Xresources and wallpaper from /etc/nni.conf, then the desktop
-    printf '%s\n' 'nni apply --x' 'exec icewm-session' > "$R/root/.xinitrc"
+    # keyboard layout, Xresources and wallpaper from /etc/nni.conf, then the desktop;
+    # NiWM's messages (and nibar's) go to ~/.niwm.log
+    printf '%s\n' 'nni apply --x' 'exec niwm-x11 2> "$HOME/.niwm.log"' > "$R/root/.xinitrc"
     # new users (adduser) inherit the desktop setup
-    cp -a "$R/root/.icewm" "$R/root/.xinitrc" "$R/root/.Xresources" "$R/etc/skel/"
+    cp -a "$R/root/.xinitrc" "$R/root/.Xresources" "$R/etc/skel/"
     cat > "$R/etc/profile.d/ynnios-x.sh" <<'EOF'
 # start X once on tty1; if X exits you get a shell (no crash loop)
 if [ "$(tty)" = /dev/tty1 ] && [ ! -e "/tmp/.ynnios-x-$(id -u)" ]; then
