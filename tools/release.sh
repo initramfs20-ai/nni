@@ -13,6 +13,8 @@
 #                                 release with the source tarball (needs: gh auth login)
 #   sh tools/release.sh isos      upload the ISOs you built to that release, with a
 #                                 signed SHA256SUMS, and update the download page
+#                                 (and the YnniOS kernel packages from dist/kernel,
+#                                 when build-kernel.sh has made them)
 #
 # To make a new version: change VERSION (and CODENAME if you like), then build + publish.
 # Needs on the build PC: git, make, gcc, dpkg-deb, dpkg-scanpackages, gpg, b2sum,
@@ -260,6 +262,15 @@ isos() {
 }$e"
   done
   [ -n "$entries" ] || die "no ISOs found in $ISO_DIR (build them first)"
+
+  # the chicken kernel, when it has been built (builders/ynnios/build-kernel.sh):
+  # installs that came from an older ISO get it from the release page
+  for k in "$DIST"/kernel/linux-image-*+ynnios_*.deb "$DIST"/kernel/linux-headers-*+ynnios_*.deb; do
+    [ -f "$k" ] || continue
+    echo "$(sha256sum "$k" | cut -d' ' -f1)  $(basename "$k")" >> "$out/SHA256SUMS"
+    upload="$upload $k"
+    echo "release: adding the kernel package $(basename "$k")"
+  done
 
   fpr=$(signing_key)
   gpg --batch --yes --local-user "$fpr" --armor --detach-sign -o "$out/SHA256SUMS.asc" "$out/SHA256SUMS"

@@ -125,6 +125,17 @@ fills the **Download** section of `https://<you>.github.io/nni/`.
   `cat sgnnios-*.iso.part* > sgnnios.iso`.
 - Uploading several GB takes a while on a home connection. Leave it running.
 - GitHub serves the files for free: the release is your download server.
+- When `dist/kernel/` holds the YnniOS kernel (see below), its packages go up too,
+  so people on an older install can download and install it.
+
+### The YnniOS kernel
+
+`sudo bash builders/ynnios/build-kernel.sh` builds Debian's kernel again with the
+chicken boot logo. It takes 2-3 hours and is only needed once per Debian kernel
+version: `build-iso.sh` then uses the result from `dist/kernel/` by itself. At about
+105 MB the package is too big for the apt repository on GitHub Pages (GitHub refuses
+files over 100 MB there), which is why it travels inside the ISOs and on the release
+page instead.
 
 ## Every release after this
 
@@ -134,7 +145,8 @@ fills the **Download** section of `https://<you>.github.io/nni/`.
    NiWM changes, so YnniOS and SGnniOS see the update.
 3. Run `sh tools/release.sh build`.
 4. Run `sh tools/release.sh publish`.
-5. Rebuild the ISOs, then run `sh tools/release.sh isos`.
+5. If Debian has a newer kernel, run `sudo bash builders/ynnios/build-kernel.sh` (it says so when there is nothing to do).
+6. Rebuild the ISOs, then run `sh tools/release.sh isos`.
 
 Machines pick the update up with `nni update`, `pol upgrade` or `spol upgrade`.
 

@@ -44,6 +44,14 @@ post_src_prepare() {
 	else
 		ewarn "nni: chicken logo not found, keeping tux"
 	fi
+	# the kernel hides its logo on "quiet" boots: take that one check out
+	local fbcon=${S}/drivers/video/fbdev/core/fbcon.c
+	if grep -A1 'console_loglevel <= CONSOLE_LOGLEVEL_QUIET' "${fbcon}" 2>/dev/null | grep -q 'logo_shown = FBCON_LOGO_DONTSHOW'; then
+		sed -i '/logo_shown < 0 && console_loglevel <= CONSOLE_LOGLEVEL_QUIET/,+1d' "${fbcon}" &&
+			einfo "nni: the boot logo will show on quiet boots too"
+	else
+		ewarn "nni: the boot logo will only show when booting without 'quiet'"
+	fi
 }
 EOF
 

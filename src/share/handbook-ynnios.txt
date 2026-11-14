@@ -522,11 +522,41 @@ prefer an easier editor: pol install nano
   While booting, the chicken splash fills the screen. Turn it off with
   nni set SPLASH no. The picture is /usr/share/nni/splash.ppm.
 
-11.5 Version and codename
+11.5 The chicken kernel (chickens at boot)
+  Debian's kernel is built without the boot logo, so no setting can
+  show one. The YnniOS kernel is Debian's own kernel (same source and
+  patches, same drivers) built again with the logo on: one chicken per
+  CPU core at the top of the screen while booting, before the splash.
+  Its name ends in +ynnios:
+      uname -r                      6.12.57+ynnios
+  An ISO built with it has it already. On an older install, download
+  linux-image-...+ynnios_..._amd64.deb from the nni release page, then:
+      pol install ./linux-image-*+ynnios_*.deb
+      update-grub                   if your GRUB menu is made by update-grub
+  With a hand-written grub.cfg that names /boot/vmlinuz (section 6.4):
+      cp /boot/vmlinuz-*+ynnios /boot/vmlinuz
+      cp /boot/initrd.img-*+ynnios /boot/initrd.img
+  Then reboot. GRUB lists the chicken kernel above Debian's kernel of
+  the same version, so it boots first and Debian's stays as a spare.
+
+  Kernel updates: the chicken kernel does not update by itself. When
+  Debian fixes its kernel, a new chicken kernel has to be built from the
+  new source (builders/ynnios/build-kernel.sh in the nni repository,
+  2-3 hours) and installed the same way. To get Debian's fixes at once
+  instead, keep Debian's kernel installed next to it:
+      pol install linux-image-amd64
+  pol upgrade then brings Debian's newer kernel, and GRUB boots that
+  one (without chickens) until a chicken kernel of that version is
+  installed.
+
+  Going back: pol install linux-image-amd64, reboot into it, then
+      pol remove 'linux-image-*+ynnios'
+
+11.6 Version and codename
   Every nni release has a number and a chicken-breed codename; the first
   is 1.0.0 "Silkie". YnniOS and SGnniOS share them. See: nni version
 
-11.6 Manual pages
+11.7 Manual pages
   Every nni command has a manual page:
       man nni   man nni.conf   man svc   man wifi   man pol   man handbook
   The "man" program comes with the full edition; minimal: pol install man-db.
