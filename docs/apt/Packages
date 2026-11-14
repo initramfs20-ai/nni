@@ -8,10 +8,10 @@ Recommends: xfonts-base, x11-xserver-utils
 Suggests: x-terminal-emulator
 Provides: x-window-manager
 Filename: pool/niwm_0.7.0_amd64.deb
-Size: 68808
-MD5sum: 242a365d7235a9efb7e61939c81e91eb
-SHA1: 858cd29653c80aa0471694574856b39ad5aea062
-SHA256: 244ab1ea8762fe805b4a0e44f2a2cd28a3b0cfb7cc1da64f2096324b558897ae
+Size: 68800
+MD5sum: 0ba92f53f0ad6b156c195c75cb136391
+SHA1: de5a54ee4fad41ff507487469d6bb7ebec0ad6af
+SHA256: a6073e7f8dbdd0c789f0b28db2d785bc2b49202a3d8df33476a928a3f8316186
 Section: x11
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
@@ -23,17 +23,17 @@ Description: lightweight tiling and floating window manager, with nibar
  system tray. Configure it in ~/.config/niwm/niwmrc; see man niwm.
 
 Package: nni-artwork
-Version: 1.3.0
+Version: 1.3.1
 Architecture: all
 Maintainer: nni project <nni@invalid>
 Installed-Size: 4504
-Depends: nni-base (>= 1.3.0)
+Depends: nni-base (>= 1.3.1)
 Recommends: xwallpaper
-Filename: pool/nni-artwork_1.3.0_all.deb
+Filename: pool/nni-artwork_1.3.1_all.deb
 Size: 4505312
-MD5sum: 2f1c554f3bdfe1760e941760bfa8b34b
-SHA1: a2fd3e34e0ff2654c9a613c68f8c74d1470589fd
-SHA256: e2b82d2f8abe23c0c7e2e8f8d4ff58057a5d652b056f2178c594f31edc345454
+MD5sum: a9f66d3403d89be0aa4912cdf0dc9f0a
+SHA1: 9f7d44f3fbde2603308d73c933398539d7c06838
+SHA256: dffe09439eb3f7f7febd2314ae0e7f2d5e5b0dbac46a2944b0a00568c996d14e
 Section: x11
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni
@@ -45,17 +45,17 @@ Description: wallpapers and desktop theme for the nni family
  nni wallpaper list
 
 Package: nni-base
-Version: 1.3.0
+Version: 1.3.1
 Architecture: amd64
 Maintainer: nni project <nni@invalid>
-Installed-Size: 1588
+Installed-Size: 1592
 Depends: busybox-static | busybox, fastfetch
 Recommends: wpasupplicant, iw
-Filename: pool/nni-base_1.3.0_amd64.deb
-Size: 407016
-MD5sum: f2bf4a7a0044d2fb12f556f58c2235b3
-SHA1: ba9cf71216857ca8ef1eacf3fe6211bce5428698
-SHA256: c44da40ff335113a9b96388e8994fc9c3889411e7c30387fa722338d13fde39b
+Filename: pool/nni-base_1.3.1_amd64.deb
+Size: 407484
+MD5sum: c0c31e16cc5b173f980c2b22d1f34e2d
+SHA1: b3a9617f9fcd89e4c041e2a4e94e9f5bdcd85d7b
+SHA256: daa4e7c37cbc3acaa3fd3e3535edcc4a2015a03f692f559961c078503cec8961
 Section: admin
 Priority: optional
 Homepage: https://github.com/initramfs20-ai/nni

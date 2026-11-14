@@ -2,13 +2,13 @@ Origin: nni
 Label: nni
 Suite: stable
 Codename: silkie
-Version: 1.3.0
-Date: Sat, 14 Nov 2026 16:29:48 +0000
+Version: 1.3.1
+Date: Sat, 14 Nov 2026 16:44:08 +0000
 Architectures: amd64 all
 Description: nni family packages for YnniOS
 MD5Sum:
- fcc759dd4002a46b2c1b49b6092d7ae1 2584 Packages
- a7467f8c1ba3357f931dfaa0feb82a64 1297 Packages.gz
+ a18e5d9a1c4f8981428b43ec17d663e2 2584 Packages
+ f3fd8159d606975eec3b27b4909b434f 1298 Packages.gz
 SHA256:
- 413f01a5bea6c7f46f577f5e8d566f4aedba1886a851c793dfabaa0fa1f0d8dd 2584 Packages
- 811684210ff53e71eb949c97be14ebc7d1bf56e1da8400c5076119781822eb7b 1297 Packages.gz
+ 207162d090083bf095e5cba7620d75fbb8503b05d39a9d26af4e83d256396934 2584 Packages
+ dad250b40ee8adc313b0bf5058101d0d7363df8e3a8a0304fcede50ad2dad27e 1298 Packages.gz
