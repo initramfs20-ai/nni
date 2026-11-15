@@ -24,6 +24,9 @@ and share the **nni core**:
 
 ## NiWM
 
+**[NiWM's own page](https://initramfs20-ai.github.io/nni/niwm/)** has screenshots and
+install instructions for other distributions.
+
 The family's window manager and the desktop of YnniOS full, in [`niwm/`](niwm/):
 tiling and floating windows on
 nine tags per monitor, in the spirit of awesome but without Lua or a widget toolkit.
@@ -57,7 +60,7 @@ src/share/applications/  the nni entries in the desktop's apps menu
 packaging/debian/    builds the nni-base, nni-artwork and niwm .deb packages
 packaging/gentoo/    the ebuild templates
 app-misc/, x11-wm/, profiles/, metadata/   the Gentoo overlay (this repo is the overlay)
-docs/                GitHub Pages site, including the apt repository in docs/apt/
+docs/                GitHub Pages site: the project page, NiWM's page in docs/niwm/, the apt repository in docs/apt/
 builders/ynnios/     YnniOS ISO builder
 builders/sgnnios/    SGnniOS ISO builder
 tools/release.sh     builds and publishes a release

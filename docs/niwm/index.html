@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en" class="no-js" data-theme="midnight-blue">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NiWM: a tiling window manager and taskbar in under 1 MB</title>
+<meta name="description" content="NiWM is a tiling and floating window manager for X11 with nibar, a vertical taskbar. Together they use under 1 MB of memory. Tags, scratchpad, window swallowing, several monitors.">
+<meta property="og:title" content="NiWM: a tiling window manager and taskbar in under 1 MB">
+<meta property="og:description" content="Tiling and floating windows on nine tags per monitor, a vertical taskbar with an apps menu and a tray, and a config file where every line is a command.">
+<meta property="og:image" content="https://initramfs20-ai.github.io/nni/niwm/img/og.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/pixelify-sans-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+  // pick the theme before the first paint: the saved one, else by light/dark preference
+  (function () {
+    var d = document.documentElement, t = null;
+    d.classList.remove('no-js');
+    try { t = localStorage.getItem('niwm-theme'); } catch (e) {}
+    if (!/^(debian-crimson|midnight-blue|pastel-sunrise|amber-dark)$/.test(t || ''))
+      t = (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'pastel-sunrise' : 'midnight-blue';
+    d.setAttribute('data-theme', t);
+  })();
+</script>
+<style>
+  @font-face { font-family: "Pixelify Sans"; font-weight: 400; font-display: swap;
+               src: url(fonts/pixelify-sans-latin-400-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Pixelify Sans"; font-weight: 700; font-display: swap;
+               src: url(fonts/pixelify-sans-latin-700-normal.woff2) format("woff2"); }
+
+  /* The four nni themes, with the colours NiWM and nibar get from each.
+     --bar-* is nibar, --accent and --border are NiWM's focused and normal
+     window borders, --desk is the desktop behind the windows. */
+  :root, [data-theme="midnight-blue"] {
+    --bar-bg:#071a33; --bar-fg:#dbe6f3; --accent:#f0c043; --border:#24466e; --logo:#dbe6f3;
+    --desk:#04101f; --win:#06152a; --text:#dbe6f3; --muted:#9db3cc; --link:#f0c043;
+    --on-accent:#1a1200; --code-bg:#020a14; --code-fg:#dbe6f3; --code-dim:#7f97b3; color-scheme: dark;
+  }
+  [data-theme="debian-crimson"] {
+    --bar-bg:#1a0a0e; --bar-fg:#f3e1e4; --accent:#e52d36; --border:#4a1a24; --logo:#f3e1e4;
+    --desk:#0f0508; --win:#14080b; --text:#f3e1e4; --muted:#c9a9af; --link:#ff7b81;
+    --on-accent:#14080b; --code-bg:#090304; --code-fg:#f3e1e4; --code-dim:#a98087; color-scheme: dark;
+  }
+  [data-theme="pastel-sunrise"] {
+    --bar-bg:#fcefe3; --bar-fg:#3d2a19; --accent:#fb5f4b; --border:#e8b48a; --logo:#f59e2e;
+    --desk:#f6dfcb; --win:#fff8f1; --text:#3d2a19; --muted:#74563e; --link:#b0301c;
+    --on-accent:#2b1206; --code-bg:#2b1d12; --code-fg:#fcefe3; --code-dim:#c4a78c; color-scheme: light;
+  }
+  [data-theme="amber-dark"] {
+    --bar-bg:#1f1b18; --bar-fg:#ece0d1; --accent:#f8b520; --border:#513214; --logo:#ece0d1;
+    --desk:#131110; --win:#191512; --text:#ece0d1; --muted:#b5a694; --link:#f8b520;
+    --on-accent:#1c1300; --code-bg:#0d0b0a; --code-fg:#ece0d1; --code-dim:#917f69; color-scheme: dark;
+  }
+
+  :root { --bar-w: 172px; --gap: 8px; --pixel: "Pixelify Sans", ui-monospace, "DejaVu Sans Mono", monospace;
+          --mono: ui-monospace, "DejaVu Sans Mono", "Liberation Mono", Menlo, Consolas, monospace; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+  body { margin: 0; background: var(--desk); color: var(--text);
+         font: 1.0625rem/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif; }
+  a { color: var(--link); text-underline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  html, body, .bar, .win, pre, .btn { transition: background-color .18s, color .18s, border-color .18s; }
+
+  /* ---- nibar ---------------------------------------------------------- */
+  .bar { position: fixed; inset: 0 auto 0 0; width: var(--bar-w); background: var(--bar-bg); color: var(--bar-fg);
+         border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 10px 0;
+         font: 13px/1.25 var(--mono); z-index: 2; }
+  .bar a { color: inherit; text-decoration: none; }
+  .bar hr { border: 0; border-top: 1px solid var(--border); margin: 9px 10px; }
+  .apps { display: flex; align-items: center; gap: 8px; padding: 6px 10px; }
+  .apps svg { width: 24px; height: 24px; flex: none; }
+  .apps:hover, .tasks a:hover { background: color-mix(in srgb, var(--bar-fg) 9%, transparent); }
+  .tags { list-style: none; margin: 0; padding: 0 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .tags li > * { display: grid; place-items: center; height: 24px; border: 1px solid var(--border); position: relative;
+                 color: color-mix(in srgb, var(--bar-fg) 55%, transparent); }
+  .tags a { color: var(--bar-fg); }
+  .tags a::after { content: ""; position: absolute; bottom: 2px; width: 6px; height: 2px; background: currentColor; }
+  .tags a:hover { background: color-mix(in srgb, var(--bar-fg) 9%, transparent); }
+  .tags a[aria-current] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .tags a[aria-current]::after { display: none; }
+  .layout { padding: 10px 10px 2px; margin: 0; }
+  .tasks { list-style: none; margin: 0; padding: 0; flex: 1; }
+  .tasks a { display: block; padding: 5px 10px 5px 14px; border-left: 3px solid transparent;
+             color: color-mix(in srgb, var(--bar-fg) 80%, transparent); }
+  .tasks a[aria-current] { background: color-mix(in srgb, var(--bar-fg) 9%, transparent);
+                           border-left-color: var(--accent); color: var(--bar-fg); }
+  .mem { margin: 0; padding: 0 10px; display: grid; grid-template-columns: auto auto 1fr; gap: 5px 8px; align-items: center; }
+  .mem dt { color: color-mix(in srgb, var(--bar-fg) 55%, transparent); }
+  .mem dd { margin: 0; }
+  .gauge { height: 6px; border: 1px solid var(--border); }
+  .gauge i { display: block; height: 100%; background: var(--bar-fg); }
+  .clock { padding: 4px 10px 0; text-align: center; }
+  .clock svg { height: 20px; width: auto; display: block; margin: 0 auto 6px; }
+  .clock span { color: color-mix(in srgb, var(--bar-fg) 55%, transparent); }
+  .no-js .clock { display: none; }
+
+  /* ---- the desktop ------------------------------------------------------ */
+  main { margin-left: var(--bar-w); padding: 28px clamp(16px, 3.2vw, 40px) 72px; max-width: 1180px; }
+  section { margin-top: 72px; }
+  h1, h2 { font-family: var(--pixel); letter-spacing: 0; margin: 0; font-variant-ligatures: none; }
+  h1 { font-weight: 700; font-size: clamp(4rem, 11vw, 7.5rem); line-height: .82; color: var(--accent); }
+  h2 { font-weight: 400; font-size: clamp(1.7rem, 3.4vw, 2.3rem); line-height: 1.1; margin-bottom: 18px; }
+  h3 { font-size: 1rem; margin: 0 0 6px; }
+  .lede { font-size: clamp(1.2rem, 2.1vw, 1.5rem); line-height: 1.35; max-width: 31em; margin: 18px 0 22px; }
+  p { max-width: 68ch; }
+  .muted { color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 28px; }
+  .btn { display: inline-block; background: var(--accent); color: var(--on-accent); font-weight: 650;
+         text-decoration: none; padding: 10px 18px; border: 2px solid var(--accent); }
+  .btn:hover { background: transparent; color: var(--text); }
+
+  /* windows: square, 2px borders, 8px gaps, the focused one in the accent colour */
+  .win { background: var(--win); border: 2px solid var(--border); min-width: 0; }
+  .win.focused { border-color: var(--accent); }
+  .tile { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 34%); grid-template-rows: auto 1fr; gap: var(--gap); }
+  .tile .master { grid-row: span 2; aspect-ratio: 1366 / 768; }
+  .tile img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top; }
+  .tile .pad { padding: 14px 16px; }
+  .term { background: var(--code-bg); color: var(--code-fg); font: .8rem/1.55 var(--mono); padding: 12px 14px;
+          margin: 0; white-space: pre; overflow-x: auto; }
+  .term .p, pre .c { color: var(--code-dim); }
+  .win > p { margin: 0; padding: 10px 14px 12px; font-size: .92rem; color: var(--muted); }
+  fieldset { border: 0; margin: 0; padding: 0; }
+  legend { padding: 0; font-weight: 650; margin-bottom: 8px; }
+  .themes { display: grid; gap: 5px; }
+  .themes button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; font-size: .9rem; line-height: 1.2; font: inherit; color: inherit;
+                   background: transparent; border: 2px solid var(--border); cursor: pointer; text-align: left; }
+  .themes button:hover { border-color: var(--muted); }
+  .themes button[aria-pressed="true"] { border-color: var(--accent); }
+  .sw { width: 16px; height: 16px; flex: none; border: 1px solid #0006; }
+  .no-js .picker { display: none; }
+
+  dl.does { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 26px 44px; margin: 0; max-width: 1040px; }
+  dl.does dt { font-weight: 650; margin-bottom: 3px; }
+  dl.does dd { margin: 0; color: var(--muted); }
+  dl.does div { border-top: 2px solid var(--border); padding-top: 12px; }
+
+  pre { background: var(--code-bg); color: var(--code-fg); border: 2px solid var(--border); margin: 0 0 var(--gap);
+        padding: 12px 14px; font: .84rem/1.6 var(--mono); overflow-x: auto; }
+  code, kbd { font-family: var(--mono); font-size: .92em; }
+  p code, li code, dd code, td code { background: color-mix(in srgb, var(--text) 9%, transparent); padding: 1px 5px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr)); gap: 22px var(--gap); align-items: start; }
+  .cols > div { min-width: 0; }
+  .cols p { margin: 0 0 10px; }
+
+  table { border-collapse: collapse; width: 100%; max-width: 760px; }
+  th, td { text-align: left; padding: 7px 14px 7px 0; border-top: 1px solid var(--border); vertical-align: top; }
+  th { font-weight: 400; white-space: nowrap; width: 1%; padding-right: 28px; }
+  kbd { border: 1px solid var(--border); background: var(--win); padding: 1px 6px; white-space: nowrap; }
+
+  .custom { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: var(--gap) 28px; align-items: center; margin-top: 34px; }
+  .custom img { display: block; width: 100%; height: auto; }
+  footer { margin-top: 84px; padding-top: 18px; border-top: 2px solid var(--border); color: var(--muted); font-size: .95rem; }
+  footer p { margin: 0 0 6px; }
+
+  /* medium screens: the screenshot on top, the other two windows side by side below it */
+  @media (max-width: 1179px) {
+    .tile { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: none; }
+    .tile .master { grid-row: auto; grid-column: span 2; aspect-ratio: auto; }
+    .tile img { height: auto; }
+  }
+
+  /* ---- small screens: the bar becomes a strip along the top ------------- */
+  @media (max-width: 820px) {
+    .bar { position: sticky; inset: 0 0 auto 0; width: auto; flex-direction: row; align-items: center; gap: 8px;
+           padding: 6px 10px; border-right: 0; border-bottom: 1px solid var(--border); }
+    .bar hr, .layout, .tasks, .mem, .clock, .tags .empty { display: none; }
+    .apps { padding: 2px 4px 2px 0; }
+    .tags { display: flex; padding: 0; flex: 1; justify-content: flex-end; }
+    .tags li > * { width: 34px; height: 30px; }
+    main { margin-left: 0; padding-top: 22px; }
+    html { scroll-padding-top: 58px; }
+    .tile, .custom { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+    .tile .master { grid-column: auto; }
+    section { margin-top: 56px; }
+    th { white-space: normal; width: 42%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    html, body, .bar, .win, pre, .btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="bar" aria-label="Sections">
+  <a class="apps" href="#top"><svg viewBox="0 0 12 12" aria-hidden="true" shape-rendering="crispEdges"><rect x="6" y="0" width="2" height="1" fill="var(--accent)"/><rect x="5" y="1" width="4" height="1" fill="var(--accent)"/><rect x="5" y="2" width="4" height="1" fill="var(--logo)"/><rect x="4" y="3" width="3" height="1" fill="var(--logo)"/><rect x="8" y="3" width="1" height="1" fill="var(--logo)"/><rect x="9" y="3" width="1" height="1" fill="#f59e2e"/><rect x="4" y="4" width="5" height="1" fill="var(--logo)"/><rect x="9" y="4" width="2" height="1" fill="#f59e2e"/><rect x="6" y="5" width="4" height="1" fill="var(--logo)"/><rect x="2" y="6" width="1" height="1" fill="var(--logo)"/><rect x="5" y="6" width="6" height="1" fill="var(--logo)"/><rect x="2" y="7" width="10" height="1" fill="var(--logo)"/><rect x="2" y="8" width="10" height="1" fill="var(--logo)"/><rect x="3" y="9" width="8" height="1" fill="var(--logo)"/><rect x="4" y="10" width="1" height="1" fill="#f59e2e"/><rect x="8" y="10" width="1" height="1" fill="#f59e2e"/><rect x="4" y="11" width="2" height="1" fill="#f59e2e"/><rect x="8" y="11" width="2" height="1" fill="#f59e2e"/></svg><span>NiWM <span id="ver"></span></span></a>
+  <hr>
+  <ol class="tags">
+    <li><a href="#top" aria-label="Overview" aria-current="true">1</a></li>
+    <li><a href="#does" aria-label="What it does">2</a></li>
+    <li><a href="#install" aria-label="Install">3</a></li>
+    <li><a href="#keys" aria-label="Keys">4</a></li>
+    <li><a href="#configure" aria-label="Configure">5</a></li>
+    <li class="empty" aria-hidden="true"><span>6</span></li>
+    <li class="empty" aria-hidden="true"><span>7</span></li>
+    <li class="empty" aria-hidden="true"><span>8</span></li>
+    <li class="empty" aria-hidden="true"><span>9</span></li>
+  </ol>
+  <p class="layout" aria-hidden="true">[]= tile</p>
+  <hr>
+  <ul class="tasks">
+    <li><a href="#top" aria-current="true">Overview</a></li>
+    <li><a href="#does">What it does</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="#keys">Keys</a></li>
+    <li><a href="#configure">Configure</a></li>
+  </ul>
+  <hr>
+  <dl class="mem" title="Memory in use (PSS)">
+    <dt>niwm</dt><dd>0.37M</dd><dd class="gauge" aria-hidden="true"><i style="width:37%"></i></dd>
+    <dt>nibar</dt><dd>0.45M</dd><dd class="gauge" aria-hidden="true"><i style="width:45%"></i></dd>
+  </dl>
+  <hr>
+  <div class="clock" aria-hidden="true"><svg id="clock" viewBox="0 0 17 5"></svg><span id="date"></span></div>
+</nav>
+
+<main>
+  <header id="top">
+    <h1>NiWM</h1>
+    <p class="lede">A tiling window manager and a taskbar for X11 that together use under 1 MB of memory.</p>
+    <div class="actions">
+      <a class="btn" href="#install">Install NiWM</a>
+      <a href="https://github.com/initramfs20-ai/nni/tree/main/niwm">Source on GitHub</a>
+    </div>
+
+    <div class="tile">
+      <div class="win focused master">
+        <img id="shot" src="img/midnight-blue.webp" width="1366" height="768"
+             alt="NiWM desktop in the Midnight Blue theme: the nibar taskbar on the left, a system information window and a terminal with a gold border.">
+      </div>
+      <div class="win">
+        <pre class="term" tabindex="0"><span class="p">$ </span>pid=$(pidof niwm-x11)
+<span class="p">$ </span>grep -E 'Rss|Pss' /proc/$pid/smaps_rollup
+Rss:      2028 kB
+Pss:       370 kB</pre>
+        <p>Measured on a 2-core Celeron laptop. PSS is the real cost; nibar adds about 0.45 MB.</p>
+      </div>
+      <div class="win picker">
+        <div class="pad">
+          <fieldset>
+            <legend>Theme</legend>
+            <div class="themes">
+              <button type="button" data-set="midnight-blue"><span class="sw" style="background:linear-gradient(90deg,#071a33 60%,#f0c043 60%)"></span>Midnight Blue</button>
+              <button type="button" data-set="debian-crimson"><span class="sw" style="background:linear-gradient(90deg,#1a0a0e 60%,#e52d36 60%)"></span>Debian Crimson</button>
+              <button type="button" data-set="pastel-sunrise"><span class="sw" style="background:linear-gradient(90deg,#fcefe3 60%,#fb5f4b 60%)"></span>Pastel Sunrise</button>
+              <button type="button" data-set="amber-dark"><span class="sw" style="background:linear-gradient(90deg,#1f1b18 60%,#f8b520 60%)"></span>Amber Dark</button>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="does">
+    <h2>What it does</h2>
+    <dl class="does">
+      <div><dt>Tags instead of workspaces</dt>
+        <dd>Nine tags per monitor. A window can sit on several tags, you can view several at once, and each tag keeps its own layout.</dd></div>
+      <div><dt>Tiling and floating</dt>
+        <dd>Tile, monocle, grid and float layouts. Any window can float by itself; hold Super and drag to move or resize it.</dd></div>
+      <div><dt>nibar, a vertical taskbar</dt>
+        <dd>Apps menu, tags, window list, system tray, battery, network and a clock. The menu reads your installed programs each time it opens.</dd></div>
+      <div><dt>Scratchpad</dt>
+        <dd>One key drops a terminal down from the top of the screen and hides it again, still running, on whatever tag you're on.</dd></div>
+      <div><dt>Window swallowing</dt>
+        <dd>Start a video or an image viewer from a terminal and it takes the terminal's place until it closes.</dd></div>
+      <div><dt>Several monitors</dt>
+        <dd>Each monitor has its own tags and its own bar. Plugging and unplugging is followed live.</dd></div>
+      <div><dt>One command language</dt>
+        <dd>The config file is a list of commands, keys run commands, and <code>niwmctl</code> sends the same commands to the running session.</dd></div>
+      <div><dt>Small on purpose</dt>
+        <dd>Plain C on libxcb. No scripting language, no widget toolkit, and text is drawn with fonts the X server already has.</dd></div>
+    </dl>
+  </section>
+
+  <section id="install">
+    <h2>Install</h2>
+    <div class="cols">
+      <div>
+        <h3>Debian, Ubuntu and relatives</h3>
+        <p class="muted">From the nni package repository, for 64-bit PCs on Debian 12 or Ubuntu 22.04 and newer.</p>
+<pre><code>sudo wget -O /usr/share/keyrings/nni-archive-keyring.gpg \
+  https://initramfs20-ai.github.io/nni/apt/nni-archive-keyring.gpg
+sudo wget -O /etc/apt/sources.list.d/nni.sources \
+  https://initramfs20-ai.github.io/nni/apt/nni.sources
+sudo apt update &amp;&amp; sudo apt install niwm</code></pre>
+      </div>
+      <div>
+        <h3>From source, on any distribution</h3>
+        <p class="muted">It needs a C compiler, make, pkg-config and the libxcb headers.</p>
+<pre><code><span class="c"># Debian/Ubuntu: build-essential pkg-config libxcb1-dev
+#                libxcb-randr0-dev libxcb-res0-dev
+# Arch:   base-devel libxcb
+# Fedora: gcc make pkgconf libxcb-devel</span>
+git clone --depth 1 https://github.com/initramfs20-ai/nni
+cd nni/niwm &amp;&amp; make
+sudo make install PREFIX=/usr</code></pre>
+      </div>
+      <div>
+        <h3>Gentoo</h3>
+        <p class="muted">From the nni overlay.</p>
+<pre><code>cat &gt; /etc/portage/repos.conf/nni.conf &lt;&lt;'EOF'
+[nni]
+location = /var/db/repos/nni
+sync-type = git
+sync-uri = https://github.com/initramfs20-ai/nni.git
+sync-depth = 1
+EOF
+echo 'x11-wm/niwm ~amd64' \
+  &gt;&gt; /etc/portage/package.accept_keywords/niwm
+emerge --sync nni &amp;&amp; emerge x11-wm/niwm</code></pre>
+      </div>
+      <div>
+        <h3>Start it</h3>
+        <p class="muted">From a console login, or pick NiWM in your display manager's session list.</p>
+<pre><code>echo 'exec niwm-x11' &gt;&gt; ~/.xinitrc
+startx</code></pre>
+        <p class="muted">NiWM draws no wallpaper itself; <code>xwallpaper</code> or <code>feh</code> does that. <a href="../">YnniOS</a> ships with NiWM as its desktop: <code>pol install niwm</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="keys">
+    <h2>Keys to start with</h2>
+    <table>
+      <tr><th><kbd>Super</kbd> + <kbd>Enter</kbd></th><td>Open a terminal</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>P</kbd></th><td>Open the apps menu, then type to filter</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>S</kbd></th><td>Show or hide the scratchpad terminal</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>J</kbd> / <kbd>K</kbd></th><td>Focus the next or previous window; add <kbd>Shift</kbd> to swap them</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>1</kbd>…<kbd>9</kbd></th><td>View a tag; add <kbd>Shift</kbd> to send the window there</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>Space</kbd></th><td>Next layout: tile, monocle, grid, float</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>F</kbd></th><td>Fullscreen</td></tr>
+      <tr><th><kbd>Super</kbd> + drag</th><td>Move a window; with the right button, resize it</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>.</kbd> / <kbd>,</kbd></th><td>Next or previous monitor; add <kbd>Shift</kbd> to take the window along</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd></th><td>Close the window</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>R</kbd></th><td>Reload the configuration</td></tr>
+      <tr><th><kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd></th><td>Quit NiWM</td></tr>
+    </table>
+    <p class="muted"><code>man niwm</code> and <code>man nibar</code> have the rest.</p>
+  </section>
+
+  <section id="configure">
+    <h2>Configure</h2>
+    <p>The theme buttons at the top of this page do what a theme does on a real desktop: nibar takes its colours from NiWM's window borders, so the two always match.</p>
+    <div class="cols" style="margin-top:22px">
+      <div>
+        <p>Every line of <code>~/.config/niwm/niwmrc</code> is a command. Start from a copy of <code>/etc/niwm/niwmrc</code>.</p>
+<pre><code>set gap 10
+set terminal alacritty
+bind mod+b spawn firefox
+rule class=mpv float
+rule class=Gimp noswallow
+autostart nibar</code></pre>
+      </div>
+      <div>
+        <p>Try any of them live before saving it, and script NiWM with the same tool.</p>
+<pre><code>niwmctl set focus_color #3355ff
+niwmctl layout grid
+niwmctl rule class=Steam monitor 2
+niwmctl subscribe     <span class="c"># state on every change, for scripts</span></code></pre>
+      </div>
+      <div>
+        <p>nibar has its own file, <code>~/.config/niwm/nibarc</code>. It only needs the lines you change.</p>
+<pre><code>position right
+layer beside          <span class="c"># fullscreen windows leave the bar visible</span>
+clock 12h
+tray_hide Blueman-applet</code></pre>
+      </div>
+      <div>
+        <p>Colours can also come from your X resources, which is how a theme recolours NiWM and nibar together.</p>
+<pre><code>niwm.focus_color:  #22e01a
+niwm.normal_color: #1c3a1e
+nibar.background:  #161214</code></pre>
+      </div>
+    </div>
+    <div class="custom">
+      <div class="win"><img src="img/custom-green.webp" width="1366" height="768" loading="lazy"
+           alt="NiWM with a home-made green theme: bright green window borders, a terminal showing 370 kB of memory in use, and a matrix-style terminal."></div>
+      <p>A home-made theme: green borders, and nibar's accent following them. The four themes at the top of this page come with <a href="../">YnniOS</a>, where <code>nni theme</code> switches them.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>NiWM is part of the <a href="../">nni family</a>, with the YnniOS and SGnniOS distributions. MIT licensed.</p>
+    <p><a href="https://github.com/initramfs20-ai/nni/tree/main/niwm">Source</a>, <a href="https://github.com/initramfs20-ai/nni/issues">bug reports</a> and <a href="https://github.com/initramfs20-ai/nni/releases/latest">releases</a> are on GitHub.</p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  var root = document.documentElement, shot = document.getElementById('shot');
+  var names = { 'midnight-blue': 'Midnight Blue', 'debian-crimson': 'Debian Crimson',
+                'pastel-sunrise': 'Pastel Sunrise', 'amber-dark': 'Amber Dark' };
+  var buttons = [].slice.call(document.querySelectorAll('[data-set]'));
+
+  // ---- themes
+  function setTheme(t, save) {
+    root.setAttribute('data-theme', t);
+    buttons.forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-set') === t ? 'true' : 'false'); });
+    shot.src = 'img/' + t + '.webp';
+    shot.alt = 'NiWM desktop in the ' + names[t] + ' theme, with the nibar taskbar on the left.';
+    if (save) { try { localStorage.setItem('niwm-theme', t); } catch (e) {} }
+  }
+  buttons.forEach(function (b) { b.addEventListener('click', function () { setTheme(b.getAttribute('data-set'), true); }); });
+  setTheme(root.getAttribute('data-theme'), false);
+
+  // ---- the bar follows the section on screen, as nibar follows the focused window
+  var links = [].slice.call(document.querySelectorAll('.bar a[href^="#"]:not(.apps)'));
+  var ids = ['top', 'does', 'install', 'keys', 'configure'];
+  function focus(id) {
+    links.forEach(function (a) {
+      if (a.getAttribute('href') === '#' + id) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+    });
+  }
+  function onScroll() {
+    var line = window.innerHeight * 0.35, cur = ids[0];
+    ids.forEach(function (id) { if (document.getElementById(id).getBoundingClientRect().top <= line) cur = id; });
+    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 4) cur = ids[ids.length - 1];
+    focus(cur);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  onScroll();
+
+  // ---- nibar's pixel clock: the same 3x5 digits it draws
+  var digits = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001',
+                '111100111001111', '111100111101111', '111001010010010', '111101111101111', '111101111001111'];
+  var clock = document.getElementById('clock'), date = document.getElementById('date');
+  function tick() {
+    var now = new Date(), s = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2), x = 0, out = '';
+    s.split('').forEach(function (ch) {
+      if (ch === ':') {
+        out += '<rect x="' + x + '" y="1" width="1" height="1" fill="var(--accent)"/><rect x="' + x + '" y="3" width="1" height="1" fill="var(--accent)"/>';
+        x += 2;
+      } else {
+        var d = digits[+ch];
+        for (var r = 0; r < 5; r++) for (var c = 0; c < 3; c++)
+          if (d.charAt(r * 3 + c) === '1') out += '<rect x="' + (x + c) + '" y="' + r + '" width="1" height="1" fill="var(--bar-fg)"/>';
+        x += 4;
+      }
+    });
+    clock.innerHTML = out;
+    date.textContent = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+    setTimeout(tick, (60 - now.getSeconds()) * 1000 + 50);
+  }
+  tick();
+
+  // ---- the released version, written by tools/release.sh
+  fetch('version.json').then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
+    if (v && v.niwm) document.getElementById('ver').textContent = v.niwm;
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>
