@@ -172,6 +172,10 @@ build() {
   niwm_tarball
   gentoo_overlay
   apt_repo
+  # the NiWM page (docs/niwm/) shows the released version from this file
+  nibar_version=$(sed -n 's/^#define NIBAR_VERSION "\(.*\)"/\1/p' niwm/bar/nibar.c)
+  printf '{"niwm": "%s", "nibar": "%s", "nni": "%s"}\n' "$NIWM_VERSION" "$nibar_version" "$VERSION" > docs/niwm/version.json
+  echo "built: docs/niwm/version.json"
   echo
   echo "nni $VERSION \"$CODENAME\" is built. Repo: $REPO_URL"
   echo "Next: sh tools/release.sh publish"
